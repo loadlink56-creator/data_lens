@@ -587,3 +587,52 @@ Visually verified: linked donut hover (slice + legend highlight together,
 rest dim), tooltip content and hover-brighten state, chart-beside-summary
 layout on numeric/categorical/temporal, and the Pareto path still renders
 correctly for a constructed 10-category fixture (donut is capped at 6).
+
+## Session 14 — chart axes, real tabs, full outlier detail (matching the
+## marketing page's actual layout, not just its visual style)
+
+User feedback after seeing Session 13 live: charts still looked wrong
+(no visible axis numbers), the marketing page's four categories
+("descriptive stats / distribution shape / missing values / outliers")
+were never actually built as navigable sections, and outliers needed
+full detail rather than a capped list wedged under the chart. Re-read
+`column-profiler.html`'s own demo script directly rather than going from
+memory — confirmed the reference draws real y-axis gridlines with tick
+numbers (0/half/max) that the live histogram never had (x-axis only),
+and that the four category labels are static `.chip` elements in the
+marketing page, never wired to real content — exactly what this session
+had to build for real.
+
+- [x] **Y-axis gridlines + tick labels**, missing entirely until now, on
+      every count-based chart (`histogramSvg`, `barChartSvg`, `paretoSvg`,
+      `lineSvg` when it doesn't need negative range) via one shared
+      `yAxis()` helper. `.ws-axislabel` bumped 9px dim → 11px muted for
+      actual legibility, not just presence.
+- [x] **Real tabs**, replacing the marketing page's decorative chip row
+      with working navigation: Descriptive Stats / Distribution Shape /
+      Missing Values / Outliers, built per column kind (categorical and
+      temporal columns don't get an Outliers tab — it doesn't apply to
+      them). Delegated click handler (`ensureTabs`) toggles panel
+      visibility only, no re-render, so switching tabs is instant and
+      doesn't recompute the already-rendered charts. Each tab opens with
+      a one-sentence plain-language intro naming what it shows and why,
+      aimed at a reader with no statistics background.
+- [x] **Outliers is now a full detail view**, not a 12-row cap glued below
+      the histogram: every flagged row in a proper table (Row, Value,
+      Where it falls, Flagged by), an explanatory intro paragraph, and a
+      genuine "no outliers found" positive state when the column is
+      clean — verified against `bank_wide.xlsx`'s `pdays` (225 real
+      outliers, full scrollable table, not truncated).
+- [x] **Named charts**: "Distribution of revenue", "How region's values
+      are split", etc., replacing generic card headers like "Distribution".
+- [x] Chart-beside-summary (`.cp-split`, Session 13) removed — now that
+      stats and shape are separate tabs, pairing them side by side no
+      longer made sense; charts get the full tab width instead
+      (`.ws-chartarea--cp` max-width raised 480px → 620px to use it).
+
+Regression: full sweep re-run (all 14 sample files, every column, AND
+every tab click within each column) via headless Chromium — 0
+console/page errors. Visually verified: y-axis numbers legible on
+histogram/box-plot/donut/Pareto/timeline, tab switching on numeric/
+categorical/temporal columns, full 225-row outlier table on real data,
+and the "no missing values" / "no outliers found" positive states.
