@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("dl-theme");if(t==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Column Profiler — Data Lens</title>
+<meta name="description" content="Counts, ranges, quartiles, distribution shape, missing values, and outliers — computed for every column in every file, without being asked.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+.prof{display:grid;grid-template-columns:1.5fr 1fr;gap:clamp(1rem,3vw,2rem)}
+@media(max-width:860px){.prof{grid-template-columns:1fr}}
+.pbox{border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem;background:rgba(var(--bg-rgb),.45)}
+.pbox__h{display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:1rem}
+.pbox__h b{font-weight:400;color:var(--cyan-soft);letter-spacing:0;text-transform:none;font-size:.75rem}
+
+.srow{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.75rem;
+  padding:.32rem 0;color:var(--muted);border-bottom:1px solid rgba(var(--fg-rgb),.05)}
+.srow:last-child{border-bottom:none}
+.srow b{color:var(--text);font-weight:500}
+
+.miss{margin-top:.9rem}
+.miss__bar{height:8px;border-radius:5px;background:rgba(var(--fg-rgb),.07);overflow:hidden;display:flex}
+.miss__bar i{height:100%;width:0;font-style:normal}
+.miss__ok{background:linear-gradient(90deg,rgba(110,207,160,.75),rgba(110,207,160,.45))}
+.miss__na{background:var(--rose)}
+.miss__k{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.66rem;color:var(--dim);margin-top:.45rem}
+.tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.9rem}
+.tags .pill{opacity:0}
+</style>
+</head>
+<body data-page="column-profiler">
+
+<nav class="nav">
+  <div class="nav__in">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+      Data Lens
+    </a>
+    <button class="nav__burger" id="navBurger" aria-expanded="false" aria-label="All sections"><span></span><span></span><span></span></button>
+  </div>
+  <div class="nav__panel" id="navPanel"></div>
+</nav>
+
+<header class="phero">
+  <div class="container">
+    <span class="phero__badge">Section 03 <em>of 07</em></span>
+    <h1>A full profile of <em>every single column.</em></h1>
+    <p class="phero__sub">Not just the ones you thought to check. Data Lens describes the shape of each column, shows you where the values bunch up, and points at the ones that don't belong.</p>
+    <div class="phero__meta">
+      <span class="chip chip--on">descriptive stats</span>
+      <span class="chip">distribution shape</span>
+      <span class="chip">missing values</span>
+      <span class="chip">outliers</span>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="stage__bar">
+        <span>column profile · <b>sales_q3.csv → revenue</b></span>
+        <span class="stage__dots"><i></i><i></i><i></i></span>
+      </div>
+      <div class="stage__body">
+        <div class="prof">
+          <div class="pbox">
+            <div class="pbox__h"><span>Distribution</span><b id="shapeLabel">&nbsp;</b></div>
+            <svg class="stg-svg" id="chart" viewBox="0 0 560 250" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+
+          <div class="pbox">
+            <div class="pbox__h"><span>Summary</span></div>
+            <div class="srow"><span>count</span><b data-n="1248">0</b></div>
+            <div class="srow"><span>mean</span><b data-n="44976">0</b></div>
+            <div class="srow"><span>median</span><b data-n="45545">0</b></div>
+            <div class="srow"><span>std dev</span><b data-n="11260">0</b></div>
+            <div class="srow"><span>min / max</span><b data-mm>—</b></div>
+            <div class="srow"><span>IQR</span><b data-n="14820">0</b></div>
+
+            <div class="miss">
+              <div class="miss__bar"><i class="miss__ok" data-ok></i><i class="miss__na" data-na></i></div>
+              <div class="miss__k"><span>1,244 valid</span><span>4 missing</span></div>
+            </div>
+
+            <div class="tags">
+              <span class="pill" data-tag><i></i>right-skewed</span>
+              <span class="pill pill--amber" data-tag><i></i>3 outliers</span>
+              <span class="pill pill--green" data-tag><i></i>99.7% complete</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stage__cap" id="cap"></div>
+    </div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container">
+    <span class="eyebrow">What it computes</span>
+    <h2 class="h2" style="max-width:32rem">The numbers you'd calculate by hand, for every column at once.</h2>
+    <div class="grid grid-4" style="margin-top:2.4rem">
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M4 20V9M10 20V4M16 20v-7M22 20H2"/></svg></div>
+        <h3>Descriptive statistics</h3>
+        <p>Count, mean, median, mode, standard deviation, min, max, and every quartile — for numeric columns, and the equivalents for text and dates.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M3 18c3 0 4-11 7-11s3 8 5 8 3-5 6-5"/></svg></div>
+        <h3>Distribution shape</h3>
+        <p>A histogram with sensible bin widths, plus skew, kurtosis, and a normality check — so you know whether the mean is telling the truth.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/><path d="M13 14h4M15 12v4"/></svg></div>
+        <h3>Missing and invalid</h3>
+        <p>Blanks, nulls, and values that don't fit the column's type — counted, and checked for patterns like whole ranges of rows going empty.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="1.5"/><circle cx="5" cy="19" r="1.5"/><path d="M3 12h4M17 12h4M12 3v4M12 17v4"/></svg></div>
+        <h3>Outliers, with receipts</h3>
+        <p>Flagged by IQR and z-score, and listed with the actual rows they came from — so you can decide whether it's an error or your best customer.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container detail">
+    <div>
+      <span class="eyebrow">Reading a profile</span>
+      <h2 class="h2">A number on its own doesn't tell you much.</h2>
+      <p class="lead">An average revenue of 44,976 sounds fine until you see the distribution has two humps, four missing rows, and one order worth more than the rest of the month combined. Every profile is built to show that in one look.</p>
+    </div>
+    <div class="dlist">
+      <div class="dlist__item" data-reveal><span class="dlist__k">01</span><div>
+        <h4>Mean and median together</h4><p>When they diverge, the column is skewed and the mean is misleading. Data Lens shows both side by side and says which one to trust.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">02</span><div>
+        <h4>Bins chosen for the data</h4><p>Histogram bin widths come from Freedman–Diaconis rather than a fixed count, so the shape isn't an artefact of the chart.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">03</span><div>
+        <h4>Missing values have patterns</h4><p>Four blanks scattered randomly is noise. Four blanks in consecutive rows is a broken export. The profile distinguishes them.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">04</span><div>
+        <h4>Nothing is dropped quietly</h4><p>Outliers are flagged, never removed. If you exclude them, that choice is recorded and shows up in the report.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section--tight">
+  <div class="container">
+    <div class="pn">
+      <a href="schema-analyser.html"><small>Previous · Section 02</small><b>← Schema Analyser</b></a>
+      <a href="relationship-mapper.html" class="pn--next"><small>Next · Section 04</small><b>Relationship Mapper →</b></a>
+    </div>
+  </div>
+</section>
+
+<section class="section cta">
+  <div class="cta__glow"></div>
+  <div class="container cta__in">
+    <h2>Profile every column, not just the obvious ones.</h2>
+    <p class="muted">The interesting one is usually the one you'd have skipped.</p>
+    <form class="cta__form" data-waitlist>
+      <input type="email" placeholder="you@company.com" required aria-label="Email address">
+      <button type="submit" class="btn btn-primary">Get early access</button>
+    </form>
+    <p class="cta__note">No spam. One email when it's ready.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container foot">
+    <div>
+      <a class="logo" href="index.html">
+        <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+        Data Lens
+      </a>
+      <p class="foot__tag">Exploratory data analysis for people who'd rather read the answer than write the query.</p>
+    </div>
+    <div><h5>Sections</h5><ul id="footSections"></ul></div>
+    <div><h5>Product</h5><ul>
+      <li><a href="index.html#how">How it works</a></li>
+      <li><a href="index.html#sections">All sections</a></li>
+      <li><a href="index.html#access">Get early access</a></li>
+    </ul></div>
+  </div>
+</footer>
+
+<script src="assets/gsap.min.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(function(){
+  var $=DL.$, $$=DL.$$;
+  var svg=$('#chart');
+  var W=560,H=250, PAD_L=42, PAD_R=18, BASE=178, BOX_Y=214;
+
+  /* right-skewed revenue distribution */
+  var BINS=[3,9,20,38,62,84,96,78,55,34,20,11,6,3,2];
+  var maxB=Math.max.apply(null,BINS);
+  var plotW=W-PAD_L-PAD_R;
+  var bw=plotW/BINS.length;
+
+  var bars=[], dots=[], boxParts=[], axis;
+
+  function draw(){
+    DL.clear(svg);
+
+    /* baseline + y ticks */
+    axis=DL.svg('g',{},svg);
+    [0,.5,1].forEach(function(f){
+      var y=BASE-f*(BASE-24);
+      DL.svg('line',{x1:PAD_L,y1:y,x2:W-PAD_R,y2:y,stroke:'rgba(var(--fg-rgb),.07)','stroke-width':1},axis);
+      var t=DL.svg('text',{x:PAD_L-8,y:y+3.5,'text-anchor':'end','font-size':9,fill:'#5b6180'},axis);
+      t.textContent=Math.round(f*maxB);
+    });
+
+    /* histogram bars */
+    bars=BINS.map(function(v,i){
+      var h=(v/maxB)*(BASE-24);
+      return DL.svg('rect',{
+        x:PAD_L+i*bw+1.5, y:BASE, width:bw-3, height:0, rx:2,
+        fill:'#4fc9d6', opacity:.72, 'data-h':h
+      },svg);
+    });
+
+    /* x labels */
+    [[0,'12k'],[Math.floor(BINS.length/2),'45k'],[BINS.length-1,'96k']].forEach(function(p){
+      var t=DL.svg('text',{x:PAD_L+p[0]*bw+bw/2,y:BASE+15,'text-anchor':'middle','font-size':9,fill:'#5b6180'},svg);
+      t.textContent=p[1];
+    });
+
+    /* box plot (q1 / median / q3 / whiskers) */
+    var g=DL.svg('g',{opacity:0},svg);
+    var x=function(f){ return PAD_L+f*plotW; };
+    DL.svg('line',{x1:x(.10),y1:BOX_Y,x2:x(.78),y2:BOX_Y,stroke:'#5b6180','stroke-width':1},g);
+    DL.svg('line',{x1:x(.10),y1:BOX_Y-6,x2:x(.10),y2:BOX_Y+6,stroke:'#5b6180','stroke-width':1},g);
+    DL.svg('line',{x1:x(.78),y1:BOX_Y-6,x2:x(.78),y2:BOX_Y+6,stroke:'#5b6180','stroke-width':1},g);
+    DL.svg('rect',{x:x(.26),y:BOX_Y-9,width:x(.55)-x(.26),height:18,rx:3,
+      fill:'rgba(79,201,214,.16)',stroke:'#4fc9d6','stroke-width':1},g);
+    DL.svg('line',{x1:x(.40),y1:BOX_Y-9,x2:x(.40),y2:BOX_Y+9,stroke:'#a5eaf1','stroke-width':2},g);
+    var lab=DL.svg('text',{x:PAD_L-8,y:BOX_Y+3.5,'text-anchor':'end','font-size':9,fill:'#5b6180'},g);
+    lab.textContent='IQR';
+    boxParts=[g];
+
+    /* outliers */
+    dots=[[.88,''],[.93,''],[.97,'3 outliers · max 146,220']].map(function(o){
+      var gg=DL.svg('g',{opacity:0},svg);
+      DL.svg('circle',{cx:x(o[0]),cy:BOX_Y,r:5,fill:'none',stroke:'#e8a94c','stroke-width':1.4},gg);
+      DL.svg('circle',{cx:x(o[0]),cy:BOX_Y,r:2,fill:'#e8a94c'},gg);
+      if(o[1]){
+        var t=DL.svg('text',{x:x(o[0]),y:BOX_Y-15,'text-anchor':'end','font-size':9.5,fill:'#f4cd8c'},gg);
+        t.textContent=o[1];
+      }
+      return gg;
+    });
+  }
+
+  draw();
+
+  var nums=$$('[data-n]'), mm=$('[data-mm]'), tags=$$('[data-tag]'),
+      ok=$('[data-ok]'), na=$('[data-na]'), shape=$('#shapeLabel');
+
+  DL.stage({
+    root:'#stage', caption:'#cap',
+    still:function(root,setCap){
+      bars.forEach(function(b){ var h=+b.getAttribute('data-h'); b.setAttribute('y',BASE-h); b.setAttribute('height',h); });
+      boxParts.forEach(function(g){g.setAttribute('opacity',1);});
+      dots.forEach(function(g){g.setAttribute('opacity',1);});
+      nums.forEach(function(n){ n.textContent=parseInt(n.getAttribute('data-n'),10).toLocaleString('en-US'); });
+      mm.textContent='12,040 / 146,220';
+      ok.style.width='99.7%'; na.style.width='.3%';
+      tags.forEach(function(t){t.style.opacity=1;});
+      shape.textContent='right-skewed · skew 0.68';
+      setCap('1,248 values · median 45,545 · <b>3 outliers worth a look</b>');
+    },
+    build:function(tl,setCap){
+      tl.call(function(){
+        bars.forEach(function(b){ b.setAttribute('y',BASE); b.setAttribute('height',0); });
+        boxParts.forEach(function(g){ g.setAttribute('opacity',0); });
+        dots.forEach(function(g){ g.setAttribute('opacity',0); });
+        nums.forEach(function(n){ n.textContent='0'; });
+        mm.textContent='—'; shape.textContent='\u00a0';
+        ok.style.width='0%'; na.style.width='0%';
+        tags.forEach(function(t){ t.style.opacity=0; gsap.set(t,{y:6}); });
+      });
+
+      /* 1 — histogram builds */
+      tl.call(setCap,['Every value in the column, sorted into bins.'],.1);
+      bars.forEach(function(b,i){
+        var h=+b.getAttribute('data-h');
+        tl.to(b,{attr:{y:BASE-h,height:h},duration:.42,ease:'power2.out'},.25+i*.075);
+      });
+
+      /* 2 — summary numbers */
+      tl.call(setCap,['The summary you would have worked out by hand.'],1.9)
+        .call(function(){
+          nums.forEach(function(n){ DL.count(n,parseInt(n.getAttribute('data-n'),10),{duration:1.1}); });
+          DL.count({set textContent(v){ mm.textContent='12,040 / '+v; }},146220,{duration:1.1});
+        },null,2.0);
+
+      /* 3 — shape */
+      tl.call(setCap,['Mean sits above median, so the tail is on the right.'],4.0)
+        .call(function(){ shape.textContent='right-skewed · skew 0.68'; },null,4.1)
+        .to(boxParts[0],{opacity:1,duration:.6,ease:'power2.out'},4.2);
+
+      /* 4 — completeness */
+      tl.call(setCap,['Four values are missing. Here is exactly where.'],5.9)
+        .to(ok,{width:'99.7%',duration:.9,ease:'power2.out'},6.0)
+        .to(na,{width:'.3%',duration:.9,ease:'power2.out'},6.0);
+
+      /* 5 — outliers pop */
+      tl.call(setCap,['And three values sit well outside the rest.'],7.5);
+      dots.forEach(function(g,i){
+        tl.fromTo(g,{opacity:0,attr:{}},{opacity:1,duration:.4,ease:'power2.out'},7.6+i*.42)
+          .fromTo(g.querySelector('circle'),{attr:{r:2}},{attr:{r:5},duration:.5,ease:'back.out(3)'},7.6+i*.42);
+      });
+
+      /* 6 — verdict tags */
+      tl.to(tags,{opacity:1,y:0,duration:.45,stagger:.28,ease:'power2.out'},9.2);
+
+      tl.call(setCap,['1,248 values · median 45,545 · <b>3 outliers worth a look</b>'],11.0)
+        .to({},{duration:2.3},11.0);
+    }
+  });
+})();
+</script>
+</body>
+</html>

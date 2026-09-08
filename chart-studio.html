@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("dl-theme");if(t==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chart Studio — Data Lens</title>
+<meta name="description" content="Data Lens picks a chart type for every column and every promising pair, then lets you swap, filter, and restyle whatever it chose.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+.studio{display:grid;grid-template-columns:220px 1fr;gap:clamp(1rem,3vw,1.6rem)}
+@media(max-width:800px){.studio{grid-template-columns:1fr}}
+
+.types{display:flex;flex-direction:column;gap:.4rem}
+@media(max-width:800px){.types{flex-direction:row;flex-wrap:wrap}}
+.type{display:flex;align-items:center;gap:.6rem;font-family:var(--mono);font-size:.74rem;color:var(--dim);
+  border:1px solid var(--line);border-radius:9px;padding:.52rem .65rem;transition:all .4s cubic-bezier(.2,.8,.2,1)}
+.type svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;flex:none}
+.type.is-on{color:var(--bg);background:linear-gradient(135deg,var(--amber-soft),var(--amber));
+  border-color:transparent;font-weight:500}
+.type em{font-style:normal;margin-left:auto;font-size:.62rem;opacity:.7}
+
+.canvasbox{border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem;background:rgba(var(--bg-rgb),.45)}
+.canvasbox__h{display:flex;align-items:center;justify-content:space-between;gap:1rem;font-family:var(--mono);
+  font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:.6rem}
+.canvasbox__h b{font-weight:400;color:var(--cyan-soft);letter-spacing:0;text-transform:none;font-size:.74rem}
+.why{font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-top:.7rem;
+  padding-top:.7rem;border-top:1px solid var(--line);line-height:1.5;min-height:2.6rem}
+.why b{color:var(--cyan-soft);font-weight:400}
+</style>
+</head>
+<body data-page="chart-studio">
+
+<nav class="nav">
+  <div class="nav__in">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+      Data Lens
+    </a>
+    <button class="nav__burger" id="navBurger" aria-expanded="false" aria-label="All sections"><span></span><span></span><span></span></button>
+  </div>
+  <div class="nav__panel" id="navPanel"></div>
+</nav>
+
+<header class="phero">
+  <div class="container">
+    <span class="phero__badge">Section 06 <em>of 07</em></span>
+    <h1>Charts that <em>pick themselves.</em></h1>
+    <p class="phero__sub">Choosing a chart is a decision about what you want to show. Data Lens makes a sensible first choice for every column and every pair — and tells you why it chose that one, so changing it is an informed decision.</p>
+    <div class="phero__meta">
+      <span class="chip chip--on">automatic chart choice</span>
+      <span class="chip">small multiples</span>
+      <span class="chip">cross-filtering</span>
+      <span class="chip">export to PNG / SVG</span>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="stage__bar">
+        <span>chart studio · <b>revenue by month</b></span>
+        <span class="stage__dots"><i></i><i></i><i></i></span>
+      </div>
+      <div class="stage__body">
+        <div class="studio">
+          <div class="types">
+            <div class="type" data-type="bar"><svg viewBox="0 0 16 16"><path d="M3 13V7M8 13V3M13 13v-4M1.5 14.5h13"/></svg>bar<em>chosen</em></div>
+            <div class="type" data-type="line"><svg viewBox="0 0 16 16"><path d="M2 12l4-4 3 2 5-6M1.5 14.5h13"/></svg>line</div>
+            <div class="type" data-type="area"><svg viewBox="0 0 16 16"><path d="M2 12l4-4 3 2 5-6v9H2z"/></svg>area</div>
+            <div class="type" data-type="scatter"><svg viewBox="0 0 16 16"><circle cx="4" cy="11" r="1.4"/><circle cx="8" cy="7" r="1.4"/><circle cx="12" cy="4" r="1.4"/><path d="M1.5 14.5h13"/></svg>scatter</div>
+          </div>
+
+          <div class="canvasbox">
+            <div class="canvasbox__h"><span>Preview</span><b id="chartName">&nbsp;</b></div>
+            <svg class="stg-svg" id="canvas" viewBox="0 0 620 260" preserveAspectRatio="xMidYMid meet"></svg>
+            <div class="why" id="why">&nbsp;</div>
+          </div>
+        </div>
+      </div>
+      <div class="stage__cap" id="cap"></div>
+    </div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container">
+    <span class="eyebrow">What it gives you</span>
+    <h2 class="h2" style="max-width:33rem">A first draft for every column, ready to argue with.</h2>
+    <div class="grid grid-4" style="margin-top:2.4rem">
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V4M16 19v-7M2 21h20"/></svg></div>
+        <h3>Chosen by column type</h3>
+        <p>A category gets bars. A date gets a line. Two numbers get a scatter. A single distribution gets a histogram. Each with the reasoning attached.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+        <h3>Small multiples</h3>
+        <p>Break any chart into one panel per category, on a shared scale, so four regions can be compared without flipping between four charts.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></div>
+        <h3>Cross-filtering</h3>
+        <p>Click a bar and every other chart on the page filters to match. Click again to clear. No query, no reload, no lost place.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 17v3h16v-3"/></svg></div>
+        <h3>Export anywhere</h3>
+        <p>PNG for a slide, SVG for a designer, or straight into the report — at print resolution, with the axis labels intact.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container detail">
+    <div>
+      <span class="eyebrow">How it chooses</span>
+      <h2 class="h2">Defaults you can defend.</h2>
+      <p class="lead">Auto-charting is only useful if the automatic choice is usually right and always explained. Data Lens follows a short set of rules that most analysts would apply anyway, then gets out of the way.</p>
+    </div>
+    <div class="dlist">
+      <div class="dlist__item" data-reveal><span class="dlist__k">01</span><div>
+        <h4>Cardinality decides the form</h4><p>Six categories get bars. Six hundred get a distribution instead of an unreadable axis with six hundred ticks on it.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">02</span><div>
+        <h4>Time gets a line</h4><p>When one axis is a date, order carries meaning and the points get connected. When it isn't, they don't — a line between unordered categories implies something false.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">03</span><div>
+        <h4>Axes start at zero, or say so</h4><p>Bar charts always start at zero. When a line chart doesn't, the axis is marked, so a 2% change never gets to look like a cliff.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">04</span><div>
+        <h4>Colour means something</h4><p>One palette for categories, another for sequential values, a diverging one for anything centred on zero — and every chart stays readable in greyscale.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section--tight">
+  <div class="container">
+    <div class="pn">
+      <a href="statistics-lab.html"><small>Previous · Section 05</small><b>← Statistics Lab</b></a>
+      <a href="report-builder.html" class="pn--next"><small>Next · Section 07</small><b>Report Builder →</b></a>
+    </div>
+  </div>
+</section>
+
+<section class="section cta">
+  <div class="cta__glow"></div>
+  <div class="container cta__in">
+    <h2>Skip the blank chart canvas.</h2>
+    <p class="muted">Start from a good default and change your mind from there.</p>
+    <form class="cta__form" data-waitlist>
+      <input type="email" placeholder="you@company.com" required aria-label="Email address">
+      <button type="submit" class="btn btn-primary">Get early access</button>
+    </form>
+    <p class="cta__note">No spam. One email when it's ready.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container foot">
+    <div>
+      <a class="logo" href="index.html">
+        <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+        Data Lens
+      </a>
+      <p class="foot__tag">Exploratory data analysis for people who'd rather read the answer than write the query.</p>
+    </div>
+    <div><h5>Sections</h5><ul id="footSections"></ul></div>
+    <div><h5>Product</h5><ul>
+      <li><a href="index.html#how">How it works</a></li>
+      <li><a href="index.html#sections">All sections</a></li>
+      <li><a href="index.html#access">Get early access</a></li>
+    </ul></div>
+  </div>
+</footer>
+
+<script src="assets/gsap.min.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(function(){
+  var $=DL.$, $$=DL.$$;
+  var svg=$('#canvas');
+  var W=620,H=260,PL=54,PR=22,PT=18,PB=38;
+  var x0=PL,x1=W-PR,y0=H-PB,y1=PT;
+
+  var LABELS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var VALS=[38,42,40,49,55,52,61,58,67,64,72,78];
+  var maxV=88;
+
+  var n=VALS.length, slot=(x1-x0)/n;
+  function cx(i){ return x0+slot*i+slot/2; }
+  function cy(v){ return y0-(v/maxV)*(y0-y1); }
+
+  var bars=[], dotsG=[], lineP=null, areaP=null, grid;
+
+  function build(){
+    DL.clear(svg);
+    grid=DL.svg('g',{},svg);
+    [0,.25,.5,.75,1].forEach(function(f){
+      var y=y0-f*(y0-y1);
+      DL.svg('line',{x1:x0,y1:y,x2:x1,y2:y,stroke:'rgba(var(--fg-rgb),.06)','stroke-width':1},grid);
+      var t=DL.svg('text',{x:x0-10,y:y+3.5,'text-anchor':'end','font-size':9,fill:'#5b6180'},grid);
+      t.textContent=Math.round(f*maxV)+'k';
+    });
+    DL.svg('line',{x1:x0,y1:y0,x2:x1,y2:y0,stroke:'rgba(var(--fg-rgb),.14)','stroke-width':1},grid);
+    LABELS.forEach(function(l,i){
+      var t=DL.svg('text',{x:cx(i),y:y0+16,'text-anchor':'middle','font-size':9,fill:'#5b6180'},grid);
+      t.textContent=l;
+    });
+
+    /* area (behind) */
+    areaP=DL.svg('path',{fill:'rgba(79,201,214,.16)',stroke:'none',opacity:0},svg);
+
+    /* bars */
+    bars=VALS.map(function(v,i){
+      return DL.svg('rect',{
+        x:cx(i)-slot*.32, y:cy(v), width:slot*.64, height:y0-cy(v), rx:3,
+        fill:'#4fc9d6', opacity:.78
+      },svg);
+    });
+
+    /* line */
+    lineP=DL.svg('path',{fill:'none',stroke:'#4fc9d6','stroke-width':2.4,
+      'stroke-linecap':'round','stroke-linejoin':'round',opacity:0},svg);
+
+    /* points */
+    dotsG=VALS.map(function(v,i){
+      return DL.svg('circle',{cx:cx(i),cy:cy(v),r:0,fill:'#a5eaf1'},svg);
+    });
+  }
+
+  function pathD(){
+    return VALS.map(function(v,i){ return (i?'L':'M')+cx(i)+' '+cy(v); }).join(' ');
+  }
+  function areaD(){
+    return pathD()+' L '+cx(n-1)+' '+y0+' L '+cx(0)+' '+y0+' Z';
+  }
+
+  build();
+  lineP.setAttribute('d',pathD());
+  areaP.setAttribute('d',areaD());
+
+  var typeEls=$$('[data-type]'), nameEl=$('#chartName'), whyEl=$('#why');
+
+  var VIEWS={
+    bar:{
+      name:'bar chart',
+      why:'<b>Why bars:</b> the x axis is 12 discrete months and the y axis starts at zero, so each month can be compared directly by height.'
+    },
+    line:{
+      name:'line chart',
+      why:'<b>Why a line:</b> months are ordered, so connecting them shows the trend rather than twelve separate comparisons.'
+    },
+    area:{
+      name:'area chart',
+      why:'<b>Why area:</b> same trend, but the fill emphasises cumulative volume — useful when the total matters as much as the direction.'
+    },
+    scatter:{
+      name:'scatter plot',
+      why:'<b>Why points:</b> drop the connection and each month stands alone — the right choice when the order between points is not meaningful.'
+    }
+  };
+
+  function setType(t){
+    typeEls.forEach(function(e){ e.classList.toggle('is-on', e.getAttribute('data-type')===t); });
+    nameEl.textContent=VIEWS[t].name;
+    whyEl.innerHTML=VIEWS[t].why;
+
+    var d=.75, e='power3.inOut';
+    if(t==='bar'){
+      bars.forEach(function(b,i){ gsap.to(b,{attr:{y:cy(VALS[i]),height:y0-cy(VALS[i]),width:slot*.64,x:cx(i)-slot*.32},opacity:.78,duration:d,ease:e,delay:i*.02}); });
+      gsap.to(lineP,{opacity:0,duration:.4});
+      gsap.to(areaP,{opacity:0,duration:.4});
+      dotsG.forEach(function(c){ gsap.to(c,{attr:{r:0},duration:.35}); });
+    }
+    if(t==='line'||t==='area'){
+      bars.forEach(function(b,i){ gsap.to(b,{attr:{y:cy(VALS[i]),height:2,width:slot*.64,x:cx(i)-slot*.32},opacity:0,duration:d,ease:e,delay:i*.02}); });
+      gsap.to(lineP,{opacity:1,duration:.5,delay:.2});
+      gsap.to(areaP,{opacity:(t==='area'?1:0),duration:.5,delay:.2});
+      dotsG.forEach(function(c,i){ gsap.to(c,{attr:{r:3.2},duration:.4,delay:.3+i*.02,ease:'back.out(2)'}); });
+    }
+    if(t==='scatter'){
+      bars.forEach(function(b){ gsap.to(b,{opacity:0,duration:.35}); });
+      gsap.to(lineP,{opacity:0,duration:.45});
+      gsap.to(areaP,{opacity:0,duration:.45});
+      dotsG.forEach(function(c,i){ gsap.to(c,{attr:{r:4.4},duration:.45,delay:i*.025,ease:'back.out(2)'}); });
+    }
+  }
+
+  DL.stage({
+    root:'#stage', caption:'#cap',
+    still:function(root,setCap){
+      typeEls.forEach(function(e){ e.classList.toggle('is-on', e.getAttribute('data-type')==='bar'); });
+      nameEl.textContent=VIEWS.bar.name; whyEl.innerHTML=VIEWS.bar.why;
+      setCap('Chosen automatically · <b>bar chart</b> · swap it any time');
+    },
+    build:function(tl,setCap){
+      tl.call(function(){
+        bars.forEach(function(b,i){ gsap.set(b,{attr:{y:y0,height:0},opacity:.78}); });
+        gsap.set(lineP,{opacity:0}); gsap.set(areaP,{opacity:0});
+        dotsG.forEach(function(c){ gsap.set(c,{attr:{r:0}}); });
+        typeEls.forEach(function(e){ e.classList.remove('is-on'); });
+        nameEl.textContent='\u00a0'; whyEl.innerHTML='&nbsp;';
+      });
+
+      /* 1 — the default choice */
+      tl.call(setCap,['Data Lens makes the first choice for you.'],.1)
+        .call(function(){
+          typeEls[0].classList.add('is-on');
+          nameEl.textContent=VIEWS.bar.name;
+          whyEl.innerHTML=VIEWS.bar.why;
+        },null,.3);
+      bars.forEach(function(b,i){
+        tl.to(b,{attr:{y:cy(VALS[i]),height:y0-cy(VALS[i])},duration:.5,ease:'power2.out'},.4+i*.055);
+      });
+
+      /* 2 — swap through the alternatives */
+      tl.call(setCap,['Not what you wanted? Every alternative is one click away.'],2.6)
+        .call(function(){ setType('line'); },null,2.7)
+        .to({},{duration:2.0},2.7);
+
+      tl.call(function(){ setType('area'); },null,4.9)
+        .to({},{duration:2.0},4.9);
+
+      tl.call(setCap,['And each one tells you what it is good for.'],7.0)
+        .call(function(){ setType('scatter'); },null,7.1)
+        .to({},{duration:2.0},7.1);
+
+      /* 3 — back to the default */
+      tl.call(function(){ setType('bar'); },null,9.3)
+        .call(setCap,['Chosen automatically · <b>bar chart</b> · swap it any time'],9.6)
+        .to({},{duration:2.4},9.6);
+    }
+  });
+})();
+</script>
+</body>
+</html>

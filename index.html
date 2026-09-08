@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("dl-theme");if(t==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Lens — See what's really in your data</title>
+<meta name="description" content="Drop in a folder of Excel, CSV, or XML files and Data Lens returns a complete exploratory analysis: schemas, profiles, relationships, statistics, charts, and a finished report.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+/* landing-only flourishes */
+.hero__scroll{display:flex;justify-content:center;margin-top:.4rem}
+.pipeline{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:center;margin-top:1.4rem}
+.pipeline span{font-family:var(--mono);font-size:.72rem;color:var(--dim)}
+.pipeline b{font-family:var(--mono);font-size:.72rem;font-weight:400;color:var(--cyan-soft)}
+
+/* mini art inside section cards */
+.art{width:100%;height:64px}
+.art rect,.art circle,.art path,.art line{transition:all .6s cubic-bezier(.2,.8,.2,1)}
+.seccard:hover .art .a1{transform:translateY(-3px)}
+.seccard:hover .art .grow{transform:scaleY(1.25);transform-origin:bottom}
+.seccard:hover .art .dash{stroke-dashoffset:0}
+.art .dash{stroke-dasharray:60;stroke-dashoffset:60}
+.seccard--wide{grid-column:span 2;display:grid;grid-template-columns:1fr .8fr;gap:1.6rem;align-items:center}
+.seccard--wide .seccard__art{height:120px;margin-bottom:0;order:2}
+.seccard--wide .seccard__n{margin-bottom:.7rem}
+@media(max-width:900px){.seccard--wide{grid-column:span 2}}
+@media(max-width:600px){.seccard--wide{grid-column:span 1;grid-template-columns:1fr}
+  .seccard--wide .seccard__art{height:64px;order:0;margin-bottom:1.1rem}}
+</style>
+</head>
+<body data-page="home">
+
+<nav class="nav">
+  <div class="nav__in">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+      Data Lens
+    </a>
+    <button class="nav__burger" id="navBurger" aria-expanded="false" aria-label="All sections"><span></span><span></span><span></span></button>
+  </div>
+  <div class="nav__panel" id="navPanel"></div>
+</nav>
+
+<!-- ===================== HERO ===================== -->
+<header class="hero">
+  <div class="container hero__top">
+    <span class="eyebrow eyebrow--center">Exploratory data analysis, automated</span>
+    <h1>Drop the folder.<br>Get <em>the whole picture.</em></h1>
+    <p class="hero__sub">Data Lens reads your spreadsheets, works out what's inside them, and hands back a complete analysis — schemas, statistics, charts, and how every file connects. No formulas. No code.</p>
+    <div class="hero__ctas">
+      <a href="#access" class="btn btn-primary">Try Data Lens</a>
+      <a href="#sections" class="btn btn-ghost">Explore the sections</a>
+    </div>
+  </div>
+
+  <div class="cine" id="cine">
+    <div class="cine__floor"></div>
+    <div class="cine__grid"></div>
+    <div class="cam" id="cam">
+
+      <div class="obj folder" id="folder">
+        <div class="folder__name">/quarterly-reports <span>6 files</span></div>
+        <div class="folder__files">
+          <div class="tile"><i></i>sales_q3.csv</div>
+          <div class="tile"><i></i>marketing.csv</div>
+          <div class="tile is-xml"><i></i>targets.xml</div>
+          <div class="tile"><i></i>regions.csv</div>
+          <div class="tile is-xml"><i></i>catalog.xml</div>
+          <div class="tile"><i></i>returns.csv</div>
+        </div>
+      </div>
+
+      <div class="obj lens" id="lens">
+        <div class="lens__ring r1"></div><div class="lens__ring r2"></div><div class="lens__ring r3"></div>
+        <div class="lens__glass"></div><div class="lens__glare"></div>
+      </div>
+
+      <div class="obj sheet sheet--a" id="csvA">
+        <div class="sheet__bar"><i></i>sales_q3.csv</div>
+        <div class="sheet__body">
+          <div class="sheet__layer" data-grid>
+            <table class="gridtbl">
+              <tr><th>region</th><th>month</th><th>revenue</th><th>units</th></tr>
+              <tr><td>North</td><td>Jul</td><td>48,210</td><td>612</td></tr>
+              <tr><td>South</td><td>Jul</td><td>39,470</td><td>498</td></tr>
+              <tr><td>East</td><td>Aug</td><td>52,900</td><td>701</td></tr>
+              <tr><td>West</td><td>Aug</td><td>31,260</td><td>384</td></tr>
+              <tr><td>North</td><td>Sep</td><td>55,140</td><td>733</td></tr>
+              <tr><td>South</td><td>Sep</td><td>42,880</td><td>560</td></tr>
+            </table>
+          </div>
+          <div class="sheet__layer collist" data-cols>
+            <div class="colchip" data-col="region"><b>region</b><s>text</s></div>
+            <div class="colchip" data-col="month"><b>month</b><s>date</s></div>
+            <div class="colchip" data-col="revenue"><b>revenue</b><s>number</s></div>
+            <div class="colchip" data-col="units"><b>units</b><s>number</s></div>
+          </div>
+          <div class="scan" data-scan></div>
+        </div>
+      </div>
+
+      <div class="obj sheet sheet--b" id="csvB">
+        <div class="sheet__bar"><i></i>marketing.csv</div>
+        <div class="sheet__body">
+          <div class="sheet__layer" data-grid>
+            <table class="gridtbl">
+              <tr><th>region</th><th>month</th><th>ad_spend</th><th>clicks</th></tr>
+              <tr><td>North</td><td>Jul</td><td>9,400</td><td>4,120</td></tr>
+              <tr><td>South</td><td>Jul</td><td>7,150</td><td>3,004</td></tr>
+              <tr><td>East</td><td>Aug</td><td>11,020</td><td>5,338</td></tr>
+              <tr><td>West</td><td>Aug</td><td>5,880</td><td>2,271</td></tr>
+              <tr><td>North</td><td>Sep</td><td>12,300</td><td>5,904</td></tr>
+              <tr><td>South</td><td>Sep</td><td>8,640</td><td>3,712</td></tr>
+            </table>
+          </div>
+          <div class="sheet__layer collist" data-cols>
+            <div class="colchip" data-col="region"><b>region</b><s>text</s></div>
+            <div class="colchip" data-col="month"><b>month</b><s>date</s></div>
+            <div class="colchip" data-col="ad_spend"><b>ad_spend</b><s>number</s></div>
+            <div class="colchip" data-col="clicks"><b>clicks</b><s>number</s></div>
+          </div>
+          <div class="scan" data-scan></div>
+        </div>
+      </div>
+
+      <div class="obj statcard" id="cardA">
+        <div class="statcard__h">sales_q3.csv · summary</div>
+        <div class="statrow"><span>rows</span><b data-num="1248">0</b></div>
+        <div class="statrow"><span>revenue · mean</span><b data-num="44976">0</b></div>
+        <div class="statrow"><span>revenue · median</span><b data-num="45545">0</b></div>
+        <div class="statrow"><span>missing</span><b>0</b></div>
+        <div class="statcard__bars" data-bars><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="obj statcard" id="cardB">
+        <div class="statcard__h">marketing.csv · summary</div>
+        <div class="statrow"><span>rows</span><b data-num="1248">0</b></div>
+        <div class="statrow"><span>ad_spend · mean</span><b data-num="9065">0</b></div>
+        <div class="statrow"><span>ad_spend · median</span><b data-num="9020">0</b></div>
+        <div class="statrow"><span>missing</span><b>12</b></div>
+        <div class="statcard__bars" data-bars><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="obj proc" id="proc">
+        <div class="proc__ring">
+          <svg viewBox="0 0 80 80"><circle class="proc__bg" cx="40" cy="40" r="34"/>
+            <circle class="proc__fg" cx="40" cy="40" r="34" id="procArc" stroke-dasharray="214" stroke-dashoffset="214"/></svg>
+        </div>
+        <div class="proc__label" id="procLabel">Reading columns…</div>
+      </div>
+
+    </div>
+
+    <svg class="rel" id="rel"></svg>
+    <div class="cine__vig"></div>
+    <div class="cine__cap"><span id="cap"></span></div>
+    <div class="cine__bar"><i id="bar"></i></div>
+  </div>
+
+  <div class="container">
+    <div class="hero__types">
+      <span class="lbl">Reads</span>
+      <span class="chip">.xlsx</span><span class="chip">.xls</span><span class="chip">.csv</span>
+      <span class="chip">.xml</span><span class="chip">.tsv</span><span class="chip">whole folders</span>
+    </div>
+  </div>
+</header>
+
+<!-- ===================== SECTIONS OVERVIEW ===================== -->
+<section class="section" id="sections">
+  <div class="container">
+    <span class="eyebrow">Seven sections, one pass</span>
+    <h2 class="h2" style="max-width:34rem">Each stage of an EDA, as its own workspace.</h2>
+    <p class="lead">Data Lens runs the whole pipeline the moment you drop your files in. Every stage is also a place you can open up, dig into, and change your mind about.</p>
+
+    <div class="grid grid-3" style="margin-top:2.6rem">
+
+      <a class="seccard" href="directory-analyser.html" data-reveal>
+        <span class="seccard__n">01</span>
+        <div class="seccard__art"><svg class="art" viewBox="0 0 200 64" fill="none">
+          <rect x="8" y="10" width="54" height="12" rx="3" stroke="#4fc9d6" stroke-width="1.2" class="a1"/>
+          <rect x="24" y="28" width="54" height="12" rx="3" stroke="#8b92a9" stroke-width="1.2"/>
+          <rect x="24" y="46" width="54" height="12" rx="3" stroke="#8b92a9" stroke-width="1.2"/>
+          <path d="M14 22v22M14 34h10M14 52h10" stroke="#5b6180" stroke-width="1.2"/>
+          <path d="M96 34h84" stroke="#e8a94c" stroke-width="1.4" class="dash"/>
+          <circle cx="188" cy="34" r="5" stroke="#e8a94c" stroke-width="1.4"/>
+        </svg></div>
+        <h3>Directory Analyser</h3>
+        <p>Point it at a folder. Every file, sheet, and nested subfolder is opened, counted, and checked for problems before anything is analysed.</p>
+        <span class="seccard__go">Open section <svg viewBox="0 0 14 14"><path d="M2 7h10M8 3l4 4-4 4"/></svg></span>
+      </a>
+
+      <a class="seccard" href="schema-analyser.html" data-reveal>
+        <span class="seccard__n">02</span>
+        <div class="seccard__art"><svg class="art" viewBox="0 0 200 64" fill="none">
+          <rect x="10" y="8" width="80" height="14" rx="4" stroke="#8b92a9" stroke-width="1.2"/>
+          <rect x="10" y="26" width="80" height="14" rx="4" stroke="#4fc9d6" stroke-width="1.2" class="a1"/>
+          <rect x="10" y="44" width="80" height="14" rx="4" stroke="#8b92a9" stroke-width="1.2"/>
+          <text x="100" y="20" font-family="IBM Plex Mono, monospace" font-size="9" fill="#5b6180">text</text>
+          <text x="100" y="38" font-family="IBM Plex Mono, monospace" font-size="9" fill="#a5eaf1">date</text>
+          <text x="100" y="56" font-family="IBM Plex Mono, monospace" font-size="9" fill="#f4cd8c">number</text>
+          <path d="M150 14h40M150 32h40M150 50h40" stroke="#5b6180" stroke-width="1.2" stroke-dasharray="3 3"/>
+        </svg></div>
+        <h3>Schema Analyser</h3>
+        <p>Every column gets a real type, a confidence score, and a check that it means the same thing in every file it appears in.</p>
+        <span class="seccard__go">Open section <svg viewBox="0 0 14 14"><path d="M2 7h10M8 3l4 4-4 4"/></svg></span>
+      </a>
+
+      <a class="seccard" href="column-profiler.html" data-reveal>
+        <span class="seccard__n">03</span>
+        <div class="seccard__art"><svg class="art" viewBox="0 0 200 64" fill="none">
+          <g fill="#4fc9d6" opacity=".75">
+            <rect x="14" y="46" width="14" height="12" rx="2" class="grow"/>
+            <rect x="32" y="36" width="14" height="22" rx="2" class="grow"/>
+            <rect x="50" y="20" width="14" height="38" rx="2" class="grow"/>
+            <rect x="68" y="12" width="14" height="46" rx="2" class="grow"/>
+            <rect x="86" y="26" width="14" height="32" rx="2" class="grow"/>
+            <rect x="104" y="40" width="14" height="18" rx="2" class="grow"/>
+            <rect x="122" y="50" width="14" height="8" rx="2" class="grow"/>
+          </g>
+          <circle cx="164" cy="18" r="4" stroke="#e8a94c" stroke-width="1.4" class="a1"/>
+          <circle cx="178" cy="30" r="3" stroke="#e8a94c" stroke-width="1.2"/>
+          <path d="M150 58h40" stroke="#5b6180" stroke-width="1"/>
+        </svg></div>
+        <h3>Column Profiler</h3>
+        <p>Counts, ranges, quartiles, distribution shape, missing values, and outliers — computed for every column without being asked.</p>
+        <span class="seccard__go">Open section <svg viewBox="0 0 14 14"><path d="M2 7h10M8 3l4 4-4 4"/></svg></span>
+      </a>
+
+      <a class="seccard" href="relationship-mapper.html" data-reveal>
+        <span class="seccard__n">04</span>
+        <div class="seccard__art"><svg class="art" viewBox="0 0 200 64" fill="none">
+          <path d="M40 20 100 32M40 44 100 32M100 32 160 16M100 32 160 48" stroke="#e8a94c" stroke-width="1.2" opacity=".7"/>
+          <circle cx="40" cy="20" r="7" fill="#131a2e" stroke="#4fc9d6" stroke-width="1.4"/>
+          <circle cx="40" cy="44" r="7" fill="#131a2e" stroke="#4fc9d6" stroke-width="1.4"/>
+          <circle cx="100" cy="32" r="9" fill="#131a2e" stroke="#e8a94c" stroke-width="1.6" class="a1"/>
+          <circle cx="160" cy="16" r="7" fill="#131a2e" stroke="#8b7fd4" stroke-width="1.4"/>
+          <circle cx="160" cy="48" r="7" fill="#131a2e" stroke="#8b7fd4" stroke-width="1.4"/>
+        </svg></div>
+        <h3>Relationship Mapper</h3>
+        <p>Join keys, match rates, cardinality, and correlations across your whole folder — drawn as a map you can read at a glance.</p>
+        <span class="seccard__go">Open section <svg viewBox="0 0 14 14"><path d="M2 7h10M8 3l4 4-4 4"/></svg></span>
+      </a>
+
+      <a class="seccard" href="statistics-lab.html" data-reveal>
+        <span class="seccard__n">05</span>
+        <div class="seccard__art"><svg class="art" viewBox="0 0 200 64" fill="none">
+          <path d="M14 56 186 14" stroke="#e8a94c" stroke-width="1.6" class="dash" style="stroke-dasharray:180;stroke-dashoffset:0"/>
+          <g fill="#4fc9d6" opacity=".8">
+            <circle cx="30" cy="50" r="3"/><circle cx="56" cy="46" r="3"/><circle cx="72" cy="38" r="3"/>
+            <circle cx="98" cy="36" r="3"/><circle cx="118" cy="26" r="3"/><circle cx="142" cy="24" r="3"/>
+            <circle cx="166" cy="16" r="3"/>
+          </g>
+          <text x="14" y="16" font-family="IBM Plex Mono, monospace" font-size="10" fill="#f4cd8c">r² = 0.74</text>
+        </svg></div>
+        <h3>Statistics Lab</h3>
+        <p>The right test picked for the shape of your data — comparisons, correlations, regressions — with a plain-language verdict beside every number.</p>
+        <span class="seccard__go">Open section <svg viewBox="0 0 14 14"><path d="M2 7h10M8 3l4 4-4 4"/></svg></span>
+      </a>
+
+      <a class="seccard" href="chart-studio.html" data-reveal>
+        <span class="seccard__n">06</span>
+        <div class="seccard__art"><svg class="art" viewBox="0 0 200 64" fill="none">
+          <path d="M14 52 44 34 74 42 104 20 134 28 164 10" stroke="#4fc9d6" stroke-width="1.8" class="a1"/>
+          <path d="M14 58h172" stroke="#5b6180" stroke-width="1"/>
+          <g fill="#e8a94c" opacity=".5">
+            <rect x="150" y="30" width="10" height="28" rx="2"/>
+            <rect x="164" y="20" width="10" height="38" rx="2"/>
+            <rect x="178" y="38" width="10" height="20" rx="2"/>
+          </g>
+        </svg></div>
+        <h3>Chart Studio</h3>
+        <p>Data Lens picks a chart type for every column and every promising pair, then lets you swap, filter, and restyle whatever it chose.</p>
+        <span class="seccard__go">Open section <svg viewBox="0 0 14 14"><path d="M2 7h10M8 3l4 4-4 4"/></svg></span>
+      </a>
+
+      <a class="seccard seccard--wide" href="report-builder.html" data-reveal>
+        <div class="seccard__art"><svg class="art" viewBox="0 0 200 64" fill="none">
+          <rect x="46" y="6" width="60" height="52" rx="4" stroke="#5b6180" stroke-width="1.2"/>
+          <rect x="60" y="4" width="60" height="56" rx="4" fill="#131a2e" stroke="#8b92a9" stroke-width="1.2"/>
+          <rect x="74" y="2" width="60" height="60" rx="4" fill="#151d33" stroke="#e8a94c" stroke-width="1.4" class="a1"/>
+          <path d="M84 16h40M84 24h30M84 32h40" stroke="#8b92a9" stroke-width="1.2"/>
+          <rect x="84" y="40" width="12" height="14" rx="1.5" fill="#4fc9d6" opacity=".6"/>
+          <rect x="100" y="34" width="12" height="20" rx="1.5" fill="#4fc9d6" opacity=".6"/>
+          <rect x="116" y="44" width="8" height="10" rx="1.5" fill="#4fc9d6" opacity=".6"/>
+        </svg></div>
+        <div>
+        <span class="seccard__n">07</span>
+        <h3>Report Builder</h3>
+        <p>Every finding, chart, and statistic compiled into one document — written in plain language, exportable, and re-runnable next quarter.</p>
+        <span class="seccard__go">Open section <svg viewBox="0 0 14 14"><path d="M2 7h10M8 3l4 4-4 4"/></svg></span>
+        </div>
+      </a>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SCROLLYTELLING PIPELINE ===================== -->
+<section class="section" id="pipeline">
+  <div class="container">
+    <span class="eyebrow">One folder, seven passes</span>
+    <h2 class="h2" style="max-width:32rem">Watch the same data change shape.</h2>
+    <p class="lead">Each section below is one pass over the files you dropped in. Scroll, and the same spreadsheet becomes a schema, a profile, a map, and finally a report.</p>
+
+    <div class="scrolly__grid">
+      <div class="scrolly__steps" id="sSteps">
+
+        <div class="sstep" data-step="0">
+          <h3 class="sstep__t"><span class="sstep__n">01</span>Directory Analyser</h3>
+          <p class="sstep__l">It opens the folder first.</p>
+          <p>Nine files, some nested, some in formats you forgot were in there. Everything gets opened, counted, and checked before a single number is computed.</p>
+          <a href="directory-analyser.html">Explore this section →</a>
+        </div>
+
+        <div class="sstep" data-step="1">
+          <h3 class="sstep__t"><span class="sstep__n">02</span>Schema Analyser</h3>
+          <p class="sstep__l">Then it works out what each column is.</p>
+          <p>Not from the header — from the values. <span class="mono">month</span> is a date, <span class="mono">revenue</span> is a number, <span class="mono">region</span> is a category with four levels. Each with a confidence score you can override.</p>
+          <a href="schema-analyser.html">Explore this section →</a>
+        </div>
+
+        <div class="sstep" data-step="2">
+          <h3 class="sstep__t"><span class="sstep__n">03</span>Column Profiler</h3>
+          <p class="sstep__l">Every column gets profiled.</p>
+          <p>Range, median, spread, and shape. Revenue turns out to be right-skewed, and one row sits far enough outside the rest to be worth a second look.</p>
+          <a href="column-profiler.html">Explore this section →</a>
+        </div>
+
+        <div class="sstep" data-step="3">
+          <h3 class="sstep__t"><span class="sstep__n">04</span>Relationship Mapper</h3>
+          <p class="sstep__l">Then the second file arrives.</p>
+          <p>Two columns match by value, not just by name — so these files can be joined. Two more move together strongly enough to be worth testing.</p>
+          <a href="relationship-mapper.html">Explore this section →</a>
+        </div>
+
+        <div class="sstep" data-step="4">
+          <h3 class="sstep__t"><span class="sstep__n">05</span>Statistics Lab</h3>
+          <p class="sstep__l">The promising pair gets tested properly.</p>
+          <p>Assumptions checked, the right test chosen, the fit drawn with its uncertainty. Revenue and ad spend move together — and about two-thirds of the variation is accounted for.</p>
+          <a href="statistics-lab.html">Explore this section →</a>
+        </div>
+
+        <div class="sstep" data-step="5">
+          <h3 class="sstep__t"><span class="sstep__n">06</span>Chart Studio</h3>
+          <p class="sstep__l">Findings become charts.</p>
+          <p>A chart type is chosen for every column and every promising pair, with the reasoning attached — so swapping it is an informed decision rather than a guess.</p>
+          <a href="chart-studio.html">Explore this section →</a>
+        </div>
+
+        <div class="sstep" data-step="6">
+          <h3 class="sstep__t"><span class="sstep__n">07</span>Report Builder</h3>
+          <p class="sstep__l">And all of it lands in one document.</p>
+          <p>Every finding, chart, and caveat written out in plain language — the thing you actually send to someone who has never opened Data Lens.</p>
+          <a href="report-builder.html">Explore this section →</a>
+        </div>
+
+      </div>
+
+      <div class="scrolly__sticky">
+        <div class="sstage" id="sstage">
+
+          <div class="sv" id="svMain">
+            <div class="sv__tag" id="svTag"><i></i><b>/quarterly-reports</b> · 9 files</div>
+
+            <div class="svfiles" id="svFiles">
+              <span class="svfile">sales_q3.csv</span><span class="svfile">marketing.csv</span>
+              <span class="svfile is-x">targets.xml</span><span class="svfile">regions.csv</span>
+              <span class="svfile is-x">catalog.xml</span><span class="svfile">returns.csv</span>
+            </div>
+
+            <div class="svtables" id="svTables">
+              <div class="svt" id="svtA">
+                <div class="svt__bar"><i></i>sales_q3.csv</div>
+                <table class="svtbl">
+                  <tr><th data-c="region">region</th><th data-c="month">month</th><th data-c="revenue">revenue</th><th data-c="units">units</th></tr>
+                  <tr><td>North</td><td>Jul</td><td>48,210</td><td>612</td></tr>
+                  <tr><td>South</td><td>Jul</td><td>39,470</td><td>498</td></tr>
+                  <tr><td>East</td><td>Aug</td><td>52,900</td><td>701</td></tr>
+                  <tr data-outrow><td>West</td><td>Aug</td><td>146,220</td><td>384</td></tr>
+                  <tr><td>North</td><td>Sep</td><td>55,140</td><td>733</td></tr>
+                  <tr><td>South</td><td>Sep</td><td>42,880</td><td>560</td></tr>
+                </table>
+              </div>
+
+              <div class="svt svt--b" id="svtB" style="opacity:0">
+                <div class="svt__bar"><i></i>marketing.csv</div>
+                <table class="svtbl">
+                  <tr><th data-c="region">region</th><th data-c="month">month</th><th data-c="ad_spend">ad_spend</th><th data-c="clicks">clicks</th></tr>
+                  <tr><td>North</td><td>Jul</td><td>9,400</td><td>4,120</td></tr>
+                  <tr><td>South</td><td>Jul</td><td>7,150</td><td>3,004</td></tr>
+                  <tr><td>East</td><td>Aug</td><td>11,020</td><td>5,338</td></tr>
+                  <tr><td>West</td><td>Aug</td><td>5,880</td><td>2,271</td></tr>
+                  <tr><td>North</td><td>Sep</td><td>12,300</td><td>5,904</td></tr>
+                  <tr><td>South</td><td>Sep</td><td>8,640</td><td>3,712</td></tr>
+                </table>
+              </div>
+            </div>
+
+            <div class="svbadges" id="svBadges">
+              <span class="svbadge t-text">region · text</span>
+              <span class="svbadge t-date">month · date</span>
+              <span class="svbadge t-num">revenue · number</span>
+              <span class="svbadge t-num">units · number</span>
+            </div>
+          </div>
+
+          <div class="svlayer" id="svPlot"><svg class="svsvg" id="svPlotSvg" viewBox="0 0 560 400" preserveAspectRatio="none"></svg></div>
+          <svg class="svsvg" id="svLinks" style="opacity:0"></svg>
+
+          <div class="svnote svnote--amber" id="svNoteA">right-skewed · 1 outlier</div>
+          <div class="svnote svnote--cyan" id="svNoteB">2 shared keys · r = 0.82</div>
+          <div class="svnote svnote--amber" id="svNoteC">r² = 0.67 · p &lt; 0.001</div>
+
+          <div class="svdoc" id="svDoc">
+            <div class="svdoc__h"><b>Q3 data review</b><span>18 pages · 14 figures</span></div>
+            <div class="svdoc__s" data-ds>1 · Overview<em>✓</em></div>
+            <div class="svdoc__s" data-ds>2 · Columns and quality<em>✓</em></div>
+            <div class="svdoc__s" data-ds>3 · Relationships<em>✓</em></div>
+            <div class="svdoc__s" data-ds>4 · Statistical results<em>✓</em></div>
+            <div class="svdoc__s" data-ds>5 · Charts<em>✓</em></div>
+            <div class="svdocfig" data-ds><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+
+          <div class="svprog"><i id="svProg"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== WHO ===================== -->
+<section class="section" id="who">
+  <div class="container">
+    <span class="eyebrow">Built for everyone in the room</span>
+    <div class="grid grid-2" style="margin-top:2.4rem">
+      <div class="card" data-reveal>
+        <h3>For analysts</h3>
+        <p>Skip the boilerplate. The EDA notebook you'd otherwise write by hand — summary stats, correlation matrices, distribution checks, join diagnostics — ready in seconds, and a solid place to start digging deeper.</p>
+      </div>
+      <div class="card" data-reveal>
+        <h3>For everyone else</h3>
+        <p>No pivot tables. No formulas. No code. Drop in a file, read the report, and understand what's actually happening in your data — then hand the same document to your team.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CTA ===================== -->
+<section class="section cta" id="access">
+  <div class="cta__glow"></div>
+  <div class="container cta__in">
+    <h2>Ready to see what's in your data?</h2>
+    <p class="muted">Get early access to Data Lens and be the first to drop in your files.</p>
+    <form class="cta__form" data-waitlist>
+      <input type="email" placeholder="you@company.com" required aria-label="Email address">
+      <button type="submit" class="btn btn-primary">Get early access</button>
+    </form>
+    <p class="cta__note">No spam. One email when it's ready.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container foot">
+    <div>
+      <a class="logo" href="index.html">
+        <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+        Data Lens
+      </a>
+      <p class="foot__tag">Exploratory data analysis for people who'd rather read the answer than write the query.</p>
+    </div>
+    <div><h5>Sections</h5><ul id="footSections"></ul></div>
+    <div><h5>Product</h5><ul>
+      <li><a href="#pipeline">How it works</a></li>
+      <li><a href="#sections">All sections</a></li>
+      <li><a href="#access">Get early access</a></li>
+    </ul></div>
+  </div>
+</footer>
+
+<script src="assets/gsap.min.js"></script>
+<script src="assets/site.js"></script>
+<script>
+/* ===================== scrollytelling pipeline ===================== */
+(function(){
+  var $=DL.$, $$=DL.$$;
+  var stage=$('#sstage'); if(!stage) return;
+
+  var steps=$$('.sstep'),
+      tag=$('#svTag'), tables=$('#svTables'), tA=$('#svtA'), tB=$('#svtB'), files=$$('.svfile'),
+      badges=$$('.svbadge'), plot=$('#svPlot'), plotSvg=$('#svPlotSvg'),
+      links=$('#svLinks'), doc=$('#svDoc'), docSecs=$$('[data-ds]'),
+      prog=$('#svProg'),
+      noteA=$('#svNoteA'), noteB=$('#svNoteB'), noteC=$('#svNoteC');
+
+  var TAGS=[
+    '<i></i><b>/quarterly-reports</b> · 9 files · 5,274 rows',
+    '<i></i><b>sales_q3.csv</b> · 4 columns typed',
+    '<i></i><b>revenue</b> · profiled across 1,248 rows',
+    '<i></i><b>sales_q3.csv ↔ marketing.csv</b>',
+    '<i></i><b>revenue ~ ad_spend</b> · OLS regression',
+    '<i></i><b>revenue by month</b> · chart chosen automatically',
+    '<i></i><b>Q3 data review</b> · generated in 4.2s'
+  ];
+
+  var current=-1;
+  function shift(){ return -Math.round(stage.clientWidth*0.19); }
+  var linkTimer=null;
+
+  function showB(){ tB.style.display='block'; }
+  function hideB(){
+    gsap.to(tB,{opacity:0,duration:.35,onComplete:function(){ tB.style.display='none'; }});
+  }
+
+  /* ---------- small helpers ---------- */
+  function clearFocus(){
+    $$('.svtbl th,.svtbl td',stage).forEach(function(e){ e.classList.remove('is-focus','is-key'); });
+    $$('.svtbl tr',stage).forEach(function(r){ r.classList.remove('is-out'); });
+  }
+  function focusCol(table,name){
+    var idx=-1;
+    $$('th',table).forEach(function(th,i){ if(th.getAttribute('data-c')===name) idx=i; });
+    if(idx<0) return;
+    $$('tr',table).forEach(function(tr){
+      var cell=tr.children[idx];
+      if(cell) cell.classList.add('is-focus');
+    });
+  }
+  function markKeys(){
+    [tA,tB].forEach(function(t){
+      $$('th',t).forEach(function(th){
+        var c=th.getAttribute('data-c');
+        if(c==='region'||c==='month') th.classList.add('is-key');
+      });
+    });
+  }
+
+  /* ---------- step 3: histogram + box overlay ---------- */
+  function drawHistogram(){
+    DL.clear(plotSvg);
+    plotSvg.setAttribute('viewBox','0 0 560 400');
+    plotSvg.setAttribute('preserveAspectRatio','none');
+    var BINS=[4,11,24,44,70,88,96,74,50,30,17,9,5,3,2];
+    var maxB=96, X0=298, X1=540, Y0=300, Y1=112;
+    var bw=(X1-X0)/BINS.length;
+    BINS.forEach(function(v,i){
+      var hh=(v/maxB)*(Y0-Y1);
+      DL.svg('rect',{x:X0+i*bw+2,y:Y0,width:bw-4,height:0,rx:2,fill:'#4fc9d6',opacity:.7,'data-h':hh},plotSvg);
+    });
+    DL.svg('line',{x1:X0,y1:Y0,x2:X1,y2:Y0,stroke:'rgba(242,240,232,.14)','stroke-width':1},plotSvg);
+    /* outlier marker at the far right */
+    DL.svg('circle',{cx:X1-10,cy:Y0-16,r:0,fill:'none',stroke:'#e8a94c','stroke-width':1.6,'data-o':1},plotSvg);
+  }
+
+  /* ---------- step 5: scatter + fit ---------- */
+  function drawScatter(){
+    DL.clear(plotSvg);
+    plotSvg.setAttribute('viewBox','0 0 560 400');
+    plotSvg.setAttribute('preserveAspectRatio','none');
+    var X0=48,X1=515,Y0=310,Y1=95;
+    DL.svg('line',{x1:X0,y1:Y0,x2:X1,y2:Y0,stroke:'rgba(242,240,232,.14)','stroke-width':1},plotSvg);
+    DL.svg('line',{x1:X0,y1:Y0,x2:X0,y2:Y1,stroke:'rgba(242,240,232,.14)','stroke-width':1},plotSvg);
+    var seed=13;
+    function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+    for(var i=0;i<34;i++){
+      var t=i/33;
+      var px=X0+16+t*(X1-X0-32)+(rnd()-.5)*14;
+      var py=Y0-22-t*(Y0-Y1-46)+(rnd()-.5)*46;
+      DL.svg('circle',{cx:px,cy:Math.max(Y1+4,Math.min(Y0-4,py)),r:0,fill:'#4fc9d6',opacity:.75,'data-pt':1},plotSvg);
+    }
+    DL.svg('line',{x1:X0+14,y1:Y0-26,x2:X0+14,y2:Y0-26,stroke:'#e8a94c','stroke-width':2.4,
+      'stroke-linecap':'round','data-fit':1,'data-x2':X1-14,'data-y2':Y1+18},plotSvg);
+  }
+
+  /* ---------- step 6: bar chart ---------- */
+  function drawBars(){
+    DL.clear(plotSvg);
+    plotSvg.setAttribute('viewBox','0 0 560 400');
+    plotSvg.setAttribute('preserveAspectRatio','none');
+    var VALS=[38,42,40,49,55,52,61,58,67,64,72,78], maxV=88;
+    var X0=48,X1=515,Y0=305,Y1=100, slot=(X1-X0)/VALS.length;
+    DL.svg('line',{x1:X0,y1:Y0,x2:X1,y2:Y0,stroke:'rgba(242,240,232,.14)','stroke-width':1},plotSvg);
+    VALS.forEach(function(v,i){
+      var hh=(v/maxV)*(Y0-Y1);
+      DL.svg('rect',{x:X0+slot*i+slot*.2,y:Y0,width:slot*.6,height:0,rx:2,
+        fill:'#4fc9d6',opacity:.78,'data-h':hh},plotSvg);
+    });
+  }
+
+  /* ---------- step 4: join links between the two tables ---------- */
+  function drawLinks(){
+    DL.clear(links);
+    var box=stage.getBoundingClientRect();
+    links.setAttribute('viewBox','0 0 '+box.width+' '+box.height);
+    [['region','#4fc9d6','shared key'],['month','#4fc9d6',''],
+     ['revenue','#e8a94c','r = 0.82','ad_spend']].forEach(function(L){
+      var a=tA.querySelector('[data-c="'+L[0]+'"]');
+      var b=tB.querySelector('[data-c="'+(L[3]||L[0])+'"]');
+      if(!a||!b) return;
+      var ra=a.getBoundingClientRect(), rb=b.getBoundingClientRect();
+      var x1=ra.right-box.left, y1=ra.top-box.top+ra.height/2;
+      var x2=rb.left-box.left,  y2=rb.top-box.top+rb.height/2;
+      var mx=(x1+x2)/2;
+      var p=DL.svg('path',{d:'M '+x1+' '+y1+' C '+mx+' '+y1+', '+mx+' '+y2+', '+x2+' '+y2,
+        fill:'none',stroke:L[1],'stroke-width':L[1]==='#e8a94c'?1.8:1.3,opacity:.85,'stroke-linecap':'round'},links);
+      if(L[1]==='#4fc9d6') p.setAttribute('stroke-dasharray','4 4');
+      var len=p.getTotalLength();
+      if(L[1]==='#e8a94c'){ p.style.strokeDasharray=len; p.style.strokeDashoffset=len; }
+      p.setAttribute('data-len',len);
+    });
+  }
+
+  /* ---------- states ---------- */
+  var STATES=[
+    /* 0 — directory */
+    function(){
+      gsap.to(tables,{scale:1,x:0,duration:.6,ease:'power3.out'});
+      gsap.to(tA,{opacity:1,duration:.5});
+      hideB();
+      gsap.to(files,{opacity:1,y:0,duration:.4,stagger:.07,ease:'power2.out'});
+      gsap.to(badges,{opacity:0,y:4,duration:.35});
+      gsap.to([plot,links,doc],{opacity:0,duration:.4});
+      gsap.to([noteA,noteB,noteC],{opacity:0,duration:.3});
+      clearFocus();
+    },
+    /* 1 — schema */
+    function(){
+      gsap.to(tables,{scale:1,x:0,duration:.6,ease:'power3.out'});
+      gsap.to(tA,{opacity:1,duration:.4});
+      hideB();
+      gsap.to(files,{opacity:0,y:-4,duration:.3});
+      gsap.to([plot,links,doc],{opacity:0,duration:.4});
+      gsap.to([noteA,noteB,noteC],{opacity:0,duration:.3});
+      clearFocus();
+      gsap.to(badges,{opacity:1,y:0,duration:.45,stagger:.11,ease:'power2.out'});
+    },
+    /* 2 — profile */
+    function(){
+      gsap.to(tables,{scale:.84,x:shift(),duration:.7,ease:'power3.out'});
+      gsap.to(tA,{opacity:1,duration:.4});
+      hideB();
+      gsap.to(files,{opacity:0,duration:.3});
+      gsap.to(badges,{opacity:.35,duration:.4});
+      gsap.to([links,doc],{opacity:0,duration:.4});
+      gsap.to([noteB,noteC],{opacity:0,duration:.3});
+      clearFocus(); focusCol(tA,'revenue');
+      $$('[data-outrow]',tA).forEach(function(r){ r.classList.add('is-out'); });
+      drawHistogram();
+      gsap.set(plot,{opacity:1});
+      $$('rect',plotSvg).forEach(function(r,i){
+        var hh=+r.getAttribute('data-h');
+        gsap.fromTo(r,{attr:{y:300,height:0}},{attr:{y:300-hh,height:hh},duration:.5,delay:.15+i*.05,ease:'power2.out'});
+      });
+      $$('[data-o]',plotSvg).forEach(function(c){
+        gsap.fromTo(c,{attr:{r:0}},{attr:{r:6},duration:.5,delay:1.0,ease:'back.out(3)'});
+      });
+      gsap.to(noteA,{opacity:1,duration:.45,delay:1.0});
+    },
+    /* 3 — relationships */
+    function(){
+      gsap.to(tables,{scale:.82,x:0,duration:.7,ease:'power3.out'});
+      gsap.to(tA,{opacity:1,duration:.4});
+      showB(); gsap.to(files,{opacity:0,duration:.3}); gsap.to(tB,{opacity:1,duration:.6,ease:'power2.out'});
+      gsap.to(badges,{opacity:0,duration:.35});
+      gsap.to([plot,doc],{opacity:0,duration:.4});
+      gsap.to([noteA,noteC],{opacity:0,duration:.3});
+      clearFocus(); markKeys();
+      linkTimer=setTimeout(function(){
+        drawLinks();
+        gsap.to(links,{opacity:1,duration:.3});
+        $$('path',links).forEach(function(p,i){
+          var len=+p.getAttribute('data-len');
+          if(p.getAttribute('stroke-dasharray')==='4 4'){
+            gsap.fromTo(p,{opacity:0},{opacity:.85,duration:.45,delay:i*.25});
+          }else{
+            gsap.fromTo(p,{strokeDashoffset:len},{strokeDashoffset:0,duration:.75,delay:i*.25,ease:'power2.inOut'});
+          }
+        });
+      },420);
+      gsap.to(noteB,{opacity:1,duration:.45,delay:1.1});
+    },
+    /* 4 — statistics */
+    function(){
+      showB();
+      gsap.to(files,{opacity:0,duration:.3});
+      gsap.to(tables,{scale:.7,x:0,duration:.7,ease:'power3.out'});
+      gsap.to([tA,tB],{opacity:.16,duration:.6});
+      gsap.to([links,doc],{opacity:0,duration:.4});
+      gsap.to([noteA,noteB],{opacity:0,duration:.3});
+      gsap.to(badges,{opacity:0,duration:.3});
+      clearFocus();
+      drawScatter();
+      gsap.set(plot,{opacity:1});
+      $$('[data-pt]',plotSvg).forEach(function(c,i){
+        gsap.fromTo(c,{attr:{r:0}},{attr:{r:3.6},duration:.3,delay:.15+i*.022,ease:'back.out(2.5)'});
+      });
+      var fit=plotSvg.querySelector('[data-fit]');
+      if(fit){
+        gsap.to(fit,{attr:{x2:+fit.getAttribute('data-x2'),y2:+fit.getAttribute('data-y2')},
+          duration:.9,delay:.9,ease:'power2.inOut'});
+      }
+      gsap.to(noteC,{opacity:1,duration:.45,delay:1.5});
+    },
+    /* 5 — charts */
+    function(){
+      gsap.to(files,{opacity:0,duration:.3});
+      gsap.to(badges,{opacity:0,duration:.3});
+      gsap.to(tables,{scale:.7,duration:.6,ease:'power3.out'});
+      gsap.to([tA,tB],{opacity:.12,duration:.5});
+      gsap.to([links,doc],{opacity:0,duration:.4});
+      gsap.to([noteA,noteB,noteC],{opacity:0,duration:.3});
+      drawBars();
+      gsap.set(plot,{opacity:1});
+      $$('rect',plotSvg).forEach(function(r,i){
+        var hh=+r.getAttribute('data-h');
+        gsap.fromTo(r,{attr:{y:305,height:0}},{attr:{y:305-hh,height:hh},duration:.5,delay:.12+i*.055,ease:'power2.out'});
+      });
+    },
+    /* 6 — report */
+    function(){
+      gsap.to(files,{opacity:0,duration:.3});
+      gsap.to([tA,tB],{opacity:0,duration:.45,onComplete:hideB});
+      gsap.to(tables,{scale:.6,duration:.6,ease:'power2.in'});
+      gsap.to([plot,links],{opacity:0,duration:.45});
+      gsap.to([noteA,noteB,noteC],{opacity:0,duration:.3});
+      gsap.to(badges,{opacity:0,duration:.3});
+      gsap.fromTo(doc,{opacity:0,y:16,scale:.96},{opacity:1,y:0,scale:1,duration:.6,ease:'power3.out',delay:.2});
+      gsap.fromTo(docSecs,{opacity:0,x:-8},{opacity:1,x:0,duration:.4,stagger:.13,delay:.45,ease:'power2.out'});
+    }
+  ];
+
+  function go(i){
+    if(i===current) return;
+    current=i;
+    /* a fast scroll can leave a previous state's fade still running, which would
+       overwrite the incoming state — clear everything before applying the new one */
+    gsap.killTweensOf([tables,tA,tB,plot,links,doc,noteA,noteB,noteC]
+      .concat(badges,files,docSecs));
+    clearTimeout(linkTimer);
+    steps.forEach(function(s,k){ s.classList.toggle('is-on',k===i); });
+    tag.innerHTML=TAGS[i];
+    prog.style.width=((i+1)/STATES.length*100)+'%';
+    STATES[i]();
+  }
+
+  /* note placement (kept off the tables) */
+  gsap.set(noteA,{top:'16%',right:'6%'});
+  gsap.set(noteB,{bottom:'16%',left:'50%',xPercent:-50});
+  gsap.set(noteC,{top:'18%',left:'8%'});
+
+  if(DL.reduced || !window.gsap){
+    /* no scroll animation: show every step at full contrast and settle the
+       visual on the relationship view, which is the most representative frame */
+    steps.forEach(function(s){ s.classList.add('is-on'); });
+    tag.innerHTML=TAGS[3];
+    prog.style.width='100%';
+    tB.style.display='block';
+    STATES[3]();
+    steps.forEach(function(s){ s.classList.add('is-on'); });
+    return;
+  }
+
+  go(0);
+
+  /* Which step is active is decided by measuring, not by an observer band:
+     at a boundary two steps can both enter a thin band in the same frame and
+     the later callback wins, which highlighted the step you had just left.
+     Nearest-centre is unambiguous and matches where scroll-snap actually rests. */
+  var sticky=$('.scrolly__sticky');
+
+  function focalPoint(){
+    if(window.innerWidth >= 900) return window.innerHeight/2;
+    /* on a phone the visual is pinned at the top, so the text's optical centre
+       is the middle of whatever space is left underneath it */
+    var b=sticky.getBoundingClientRect();
+    var top=Math.max(0,b.bottom);
+    return top + (window.innerHeight-top)/2;
+  }
+
+  function pick(){
+    ticking=false;
+    var mid=focalPoint(), best=0, bestD=Infinity;
+    steps.forEach(function(el,i){
+      var r=el.getBoundingClientRect();
+      var d=Math.abs(r.top + r.height/2 - mid);
+      if(d<bestD){ bestD=d; best=i; }
+    });
+    go(best);
+  }
+
+  var ticking=false;
+  function onScroll(){
+    if(ticking) return;
+    ticking=true;
+    requestAnimationFrame(pick);
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});
+
+  var rt;
+  window.addEventListener('resize',function(){
+    clearTimeout(rt);
+    rt=setTimeout(function(){ var c=current; current=-1; go(c<0?0:c); pick(); },260);
+  });
+
+  pick();
+})();
+
+/* ===================== cinematic hero ===================== */
+(function(){
+  var $=DL.$, $$=DL.$$;
+  var lens=$('#lens');
+  for(var i=0;i<36;i++){
+    var t=document.createElement('div');
+    t.className='lens__tick';
+    t.style.transform='rotate('+(i*10)+'deg)';
+    t.style.opacity=(i%3===0)?.8:.28;
+    t.style.height=(i%3===0)?'13px':'7px';
+    lens.appendChild(t);
+  }
+
+  var cam=$('#cam'),folder=$('#folder'),csvA=$('#csvA'),csvB=$('#csvB'),
+      cardA=$('#cardA'),cardB=$('#cardB'),proc=$('#proc'),
+      relSvg=$('#rel'),cine=$('#cine'),cap=$('#cap'),bar=$('#bar');
+
+  function spread(){ var w=cine.clientWidth; return w<760?100:(w<1024?196:252); }
+
+  var LINKS=[
+    {a:'region', b:'region',  kind:'key', label:'shared key', short:'key'},
+    {a:'month',  b:'month',   kind:'key', label:'',           short:''},
+    {a:'revenue',b:'ad_spend',kind:'corr',label:'r = 0.82',   short:'.82'},
+    {a:'units',  b:'clicks',  kind:'corr',label:'r = 0.61',   short:'.61'}
+  ];
+
+  function drawRel(){
+    DL.clear(relSvg);
+    var box=cine.getBoundingClientRect(), narrow=cine.clientWidth<760;
+    LINKS.forEach(function(link,idx){
+      var ea=$('[data-col="'+link.a+'"]',csvA), eb=$('[data-col="'+link.b+'"]',csvB);
+      if(!ea||!eb) return;
+      var ra=ea.getBoundingClientRect(), rb=eb.getBoundingClientRect();
+      var x1=ra.right-box.left, y1=ra.top-box.top+ra.height/2;
+      var x2=rb.left-box.left,  y2=rb.top-box.top+rb.height/2;
+      var mx=(x1+x2)/2;
+      var p=DL.svg('path',{
+        d:'M '+x1+' '+y1+' C '+mx+' '+y1+', '+mx+' '+y2+', '+x2+' '+y2,
+        stroke:link.kind==='key'?'#4fc9d6':'#e8a94c',
+        'stroke-width':link.kind==='key'?1.4:2, opacity:.85
+      },relSvg);
+      if(link.kind==='key') p.setAttribute('stroke-dasharray','4 4');
+      var len=p.getTotalLength();
+      if(link.kind!=='key'){ p.style.strokeDasharray=len; p.style.strokeDashoffset=len; }
+      p.setAttribute('data-len',len);
+
+      var text=narrow?link.short:link.label;
+      if(text){
+        var mid=p.getPointAtLength(len/2);
+        var w=text.length*(narrow?6.2:7.1)+(narrow?11:16);
+        var g=DL.svg('g',{opacity:0,'data-lab':idx},relSvg);
+        DL.svg('rect',{x:mid.x-w/2,y:mid.y-10,width:w,height:20,rx:10,fill:'#131a2e',
+          stroke:link.kind==='key'?'rgba(79,201,214,.5)':'rgba(232,169,76,.55)'},g);
+        var tx=DL.svg('text',{x:mid.x,y:mid.y+3.9,'text-anchor':'middle'},g);
+        tx.textContent=text; tx.setAttribute('fill','#f2f0e8');
+      }
+    });
+  }
+
+  function animateRel(){
+    $$('path',relSvg).forEach(function(p,i){
+      var len=parseFloat(p.getAttribute('data-len'))||0;
+      if(p.getAttribute('stroke-dasharray')==='4 4'){
+        gsap.fromTo(p,{opacity:0},{opacity:.8,duration:.5,delay:i*.28});
+      }else{
+        gsap.fromTo(p,{strokeDashoffset:len},{strokeDashoffset:0,duration:.9,delay:i*.28,ease:'power2.inOut'});
+      }
+    });
+    $$('[data-lab]',relSvg).forEach(function(g,i){ gsap.to(g,{opacity:1,duration:.4,delay:1.1+i*.4}); });
+  }
+
+  function setCap(text){
+    gsap.to(cap,{opacity:0,y:-6,duration:.25,onComplete:function(){
+      cap.textContent=text;
+      gsap.fromTo(cap,{opacity:0,y:8},{opacity:1,y:0,duration:.45,ease:'power2.out'});
+    }});
+  }
+
+  function countUp(card){
+    $$('[data-num]',card).forEach(function(el){ DL.count(el,parseFloat(el.getAttribute('data-num'))); });
+    $$('[data-bars] span',card).forEach(function(s,i){
+      gsap.fromTo(s,{height:'8%'},{height:(24+Math.random()*72)+'%',duration:.6,delay:i*.06,ease:'power2.out'});
+    });
+  }
+
+  function scanSheet(sheet,dur){
+    var scan=$('[data-scan]',sheet), ths=$$('th',sheet);
+    var h=$('.sheet__body',sheet).clientHeight;
+    var t=gsap.timeline();
+    t.set(scan,{y:-34,opacity:1}).to(scan,{y:h,duration:dur,ease:'none'}).to(scan,{opacity:0,duration:.25},'-=.1');
+    ths.forEach(function(th,i){
+      t.to(th,{duration:.01,onStart:function(){th.classList.add('hot');},
+        onComplete:function(){ setTimeout(function(){th.classList.remove('hot');},420); }}, i*(dur/ths.length));
+    });
+    return t;
+  }
+
+  if(DL.reduced || !window.gsap){
+    var s=spread();
+    gsap.set&&gsap.set([folder,lens,proc,cardA,cardB],{opacity:0});
+    if(window.gsap){
+      gsap.set(csvA,{xPercent:-50,yPercent:-50,x:-s,opacity:1});
+      gsap.set(csvB,{xPercent:-50,yPercent:-50,x: s,opacity:1});
+    }
+    $$('[data-grid]').forEach(function(e){e.style.opacity=0;});
+    $$('[data-cols]').forEach(function(e){e.style.opacity=1;});
+    cap.textContent='Shared keys and strong correlations, mapped.';
+    requestAnimationFrame(function(){
+      drawRel();
+      $$('path',relSvg).forEach(function(p){p.style.strokeDashoffset=0;});
+      $$('[data-lab]',relSvg).forEach(function(g){g.setAttribute('opacity','1');});
+    });
+    return;
+  }
+
+  var tl;
+  function build(){
+    var s=spread();
+    DL.clear(relSvg);
+    tl=gsap.timeline({repeat:-1,repeatDelay:.8});
+
+    tl.set(cam,{z:-300,rotationY:-9,rotationX:5,x:0,y:0})
+      .set(folder,{xPercent:-50,yPercent:-50,x:0,y:0,z:0,opacity:0,scale:.92,rotationY:9})
+      .set(lens,{xPercent:-50,yPercent:-50,x:0,y:0,z:520,opacity:0,scale:(cine.clientWidth<760?1.12:1.35),rotationX:-14,rotationY:16})
+      .set(csvA,{xPercent:-50,yPercent:-50,x:0,y:0,z:0,opacity:0,scale:.7,rotationY:0})
+      .set(csvB,{xPercent:-50,yPercent:-50,x:0,y:0,z:0,opacity:0,scale:.7,rotationY:0})
+      .set(cardA,{xPercent:-50,yPercent:-50,x:-s*.84,y:40,z:150,opacity:0,scale:.86})
+      .set(cardB,{xPercent:-50,yPercent:-50,x: s*.84,y:40,z:150,opacity:0,scale:.86})
+      .set(proc,{xPercent:-50,yPercent:-50,x:0,y:14,z:190,opacity:0,scale:.9})
+      .set('#procArc',{strokeDashoffset:214})
+      .set($$('[data-grid]'),{opacity:1})
+      .set($$('[data-cols]'),{opacity:0})
+      .set($$('[data-scan]'),{opacity:0})
+      .set(bar,{width:'0%'})
+      .call(function(){ DL.clear(relSvg); $$('[data-num]').forEach(function(e){e.textContent='0';}); });
+
+    tl.to(bar,{width:'100%',duration:24.6,ease:'none'},0);
+
+    tl.call(setCap,['One folder. Files everywhere.'],0.15)
+      .to(folder,{opacity:1,scale:1,duration:1.1,ease:'power2.out'},0.2)
+      .to(cam,{z:-190,rotationY:4,duration:3.2,ease:'sine.inOut'},0.2);
+
+    tl.call(setCap,['Look closer.'],2.6)
+      .to(lens,{opacity:1,z:180,scale:1,rotationX:0,rotationY:0,duration:2.2,ease:'power2.out'},2.4)
+      .to(cam,{z:-40,duration:2.4,ease:'sine.inOut'},2.4)
+      .to(folder,{scale:1.06,duration:2.4,ease:'sine.inOut'},2.4);
+
+    tl.to(lens,{z:660,scale:3.6,opacity:0,duration:1.2,ease:'power2.in'},4.9)
+      .to(cam,{z:130,duration:1.2,ease:'power2.in'},4.9)
+      .to(folder,{opacity:0,scale:1.55,z:280,duration:.95,ease:'power2.in'},5.05);
+
+    tl.call(setCap,['Two files, opened side by side.'],5.8)
+      .set(cam,{z:-80},5.95)
+      .fromTo(csvA,{opacity:0,x:-30,scale:.7,rotationY:0},{opacity:1,x:-s,scale:1,rotationY:13,duration:1.3,ease:'power3.out'},5.95)
+      .fromTo(csvB,{opacity:0,x:30,scale:.7,rotationY:0},{opacity:1,x: s,scale:1,rotationY:-13,duration:1.3,ease:'power3.out'},5.95)
+      .to(cam,{z:0,rotationY:0,rotationX:2,duration:1.6,ease:'sine.inOut'},6.15);
+
+    tl.call(setCap,['Reading every row and column.'],8.4)
+      .call(function(){ $('#procLabel').textContent='Analysing 1,248 rows…'; },null,8.4)
+      .to(proc,{opacity:1,scale:1,duration:.5},8.4)
+      .fromTo('#procArc',{strokeDashoffset:214},{strokeDashoffset:0,duration:2.6,ease:'power1.inOut'},8.5)
+      .add(scanSheet(csvA,2.4),8.5)
+      .add(scanSheet(csvB,2.4),8.7)
+      .to(proc,{opacity:0,scale:.9,duration:.4},11.3);
+
+    tl.call(setCap,['A full statistical summary of each one.'],11.5)
+      .to(csvA,{z:-60,duration:.9,ease:'power2.out'},11.5)
+      .to(csvB,{z:-60,duration:.9,ease:'power2.out'},11.5)
+      .fromTo(cardA,{opacity:0,y:70,z:60,scale:.8},{opacity:1,y:40,z:150,scale:1,duration:.9,ease:'back.out(1.4)'},11.7)
+      .call(countUp,[cardA],11.9)
+      .fromTo(cardB,{opacity:0,y:70,z:60,scale:.8},{opacity:1,y:40,z:150,scale:1,duration:.9,ease:'back.out(1.4)'},12.1)
+      .call(countUp,[cardB],12.3);
+
+    tl.call(setCap,['Now — how do they connect?'],15.2)
+      .to([cardA,cardB],{opacity:0,y:10,scale:.85,duration:.7,ease:'power2.in'},15.2)
+      .call(function(){ $('#procLabel').textContent='Matching columns…'; },null,15.6)
+      .to(proc,{opacity:1,scale:1,duration:.45},15.6)
+      .fromTo('#procArc',{strokeDashoffset:214},{strokeDashoffset:0,duration:1.9,ease:'power1.inOut'},15.7)
+      .to(csvA,{z:0,rotationY:0,x:-s,duration:1.2,ease:'power2.inOut'},15.6)
+      .to(csvB,{z:0,rotationY:0,x: s,duration:1.2,ease:'power2.inOut'},15.6)
+      .to($$('[data-grid]'),{opacity:0,duration:.5},16.4)
+      .to($$('[data-cols]'),{opacity:1,duration:.6},16.7)
+      .to(proc,{opacity:0,scale:.9,duration:.4},17.7);
+
+    tl.call(setCap,['Shared keys and strong correlations, mapped.'],18.1)
+      .call(function(){ drawRel(); animateRel(); },null,18.2)
+      .to(cam,{z:-30,rotationY:0,duration:2.4,ease:'sine.inOut'},18.2)
+      .to(cam,{rotationY:3,duration:3,ease:'sine.inOut'},20.6);
+
+    tl.call(setCap,['One complete report. Every time.'],22.6)
+      .to([csvA,csvB],{z:-110,opacity:.3,duration:1.3,ease:'power2.inOut'},22.8)
+      .call(function(){ gsap.to($$('path,g',relSvg),{opacity:.1,duration:1.1}); },null,22.8)
+      .to([csvA,csvB],{opacity:0,duration:.7},24)
+      .call(function(){ DL.clear(relSvg); },null,24.4)
+      .to(cap,{opacity:0,duration:.45},24.3);
+  }
+
+  build();
+  var rt;
+  window.addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(function(){ if(tl) tl.kill(); build(); },300); });
+  DL.whenVisible(cine,function(){ tl && tl.play(); },function(){ tl && tl.pause(); });
+})();
+</script>
+</body>
+</html>

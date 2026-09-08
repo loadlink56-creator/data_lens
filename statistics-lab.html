@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("dl-theme");if(t==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Statistics Lab — Data Lens</title>
+<meta name="description" content="Comparisons, hypothesis tests, and regressions — chosen automatically for the shape of your data, with a plain-language verdict beside every number.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+.lab{display:grid;grid-template-columns:1.45fr 1fr;gap:clamp(1rem,3vw,2rem)}
+@media(max-width:860px){.lab{grid-template-columns:1fr}}
+.lbox{border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem;background:rgba(var(--bg-rgb),.45)}
+.lbox__h{display:flex;align-items:center;justify-content:space-between;gap:1rem;font-family:var(--mono);
+  font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:.9rem}
+.lbox__h b{font-weight:400;color:var(--cyan-soft);letter-spacing:0;text-transform:none;font-size:.74rem}
+
+.picker{display:flex;flex-direction:column;gap:.4rem;margin-bottom:1rem}
+.pick{display:flex;align-items:center;gap:.55rem;font-family:var(--mono);font-size:.72rem;color:var(--dim);
+  padding:.4rem .55rem;border:1px solid var(--line);border-radius:8px;transition:all .35s;opacity:.45}
+.pick i{width:12px;height:12px;border-radius:50%;border:1px solid var(--line-2);flex:none;font-style:normal;
+  display:flex;align-items:center;justify-content:center;transition:all .35s}
+.pick.is-out{opacity:.32;text-decoration:line-through}
+.pick.is-pick{opacity:1;color:var(--text);border-color:rgba(232,169,76,.45);background:rgba(232,169,76,.08)}
+.pick.is-pick i{border-color:var(--amber);background:var(--amber)}
+.pick span{margin-left:auto;font-size:.64rem;color:var(--dim)}
+
+.result{display:flex;flex-direction:column;gap:.1rem;opacity:0}
+.rrow{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.76rem;
+  padding:.34rem 0;color:var(--muted);border-bottom:1px solid rgba(var(--fg-rgb),.05)}
+.rrow:last-of-type{border-bottom:none}
+.rrow b{color:var(--text);font-weight:500}
+.verdict{margin-top:.85rem;padding:.75rem .8rem;border-radius:9px;font-size:.86rem;line-height:1.55;
+  background:rgba(110,207,160,.09);border:1px solid rgba(110,207,160,.28);color:var(--text)}
+.verdict small{display:block;font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--green);margin-bottom:.35rem}
+</style>
+</head>
+<body data-page="statistics-lab">
+
+<nav class="nav">
+  <div class="nav__in">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+      Data Lens
+    </a>
+    <button class="nav__burger" id="navBurger" aria-expanded="false" aria-label="All sections"><span></span><span></span><span></span></button>
+  </div>
+  <div class="nav__panel" id="navPanel"></div>
+</nav>
+
+<header class="phero">
+  <div class="container">
+    <span class="phero__badge">Section 05 <em>of 07</em></span>
+    <h1>The tests you'd run, <em>run for you.</em></h1>
+    <p class="phero__sub">Picking the right statistical test is most of the work, and it's where most people get stuck. Data Lens looks at the shape of your data, chooses the test that fits, and tells you what the result means in a sentence.</p>
+    <div class="phero__meta">
+      <span class="chip chip--on">test selection</span>
+      <span class="chip">regression</span>
+      <span class="chip">group comparisons</span>
+      <span class="chip">plain-language verdicts</span>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="stage__bar">
+        <span>statistics · <b>revenue ~ ad_spend</b></span>
+        <span class="stage__dots"><i></i><i></i><i></i></span>
+      </div>
+      <div class="stage__body">
+        <div class="lab">
+          <div class="lbox">
+            <div class="lbox__h"><span>Fit</span><b id="fitLabel">&nbsp;</b></div>
+            <svg class="stg-svg" id="scatter" viewBox="0 0 560 290" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+
+          <div class="lbox">
+            <div class="lbox__h"><span>Test selection</span></div>
+            <div class="picker">
+              <div class="pick" data-pick data-out><i></i>Pearson r<span>needs linearity ✓</span></div>
+              <div class="pick" data-pick data-out><i></i>Spearman ρ<span>rank-based</span></div>
+              <div class="pick" data-pick data-final><i></i>OLS regression<span>chosen</span></div>
+              <div class="pick" data-pick data-out><i></i>Mann–Whitney U<span>needs 2 groups</span></div>
+            </div>
+
+            <div class="result" id="result">
+              <div class="rrow"><span>slope</span><b data-n="3.87" data-dec="2">0</b></div>
+              <div class="rrow"><span>r</span><b data-n="0.82" data-dec="2">0</b></div>
+              <div class="rrow"><span>r²</span><b data-n="0.67" data-dec="2">0</b></div>
+              <div class="rrow"><span>p-value</span><b data-p>—</b></div>
+              <div class="rrow"><span>n</span><b data-n="1248">0</b></div>
+              <div class="verdict" id="verdict">
+                <small>What this means</small>
+                Higher ad spend goes with higher revenue, strongly enough that chance is an unlikely explanation. Ad spend explains about two-thirds of the variation in revenue — the rest comes from somewhere else.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stage__cap" id="cap"></div>
+    </div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container">
+    <span class="eyebrow">What it runs</span>
+    <h2 class="h2" style="max-width:33rem">The right test for the data in front of it.</h2>
+    <div class="grid grid-4" style="margin-top:2.4rem">
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M6 20V8M12 20V4M18 20v-9"/><path d="M3 20h18"/></svg></div>
+        <h3>Group comparisons</h3>
+        <p>t-test, Welch's, ANOVA, Mann–Whitney, Kruskal–Wallis, or chi-square — picked from your group count, distribution shape, and variance.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M3 21 21 5"/><circle cx="7" cy="17" r="1.6"/><circle cx="12" cy="13" r="1.6"/><circle cx="17" cy="8" r="1.6"/></svg></div>
+        <h3>Correlation and regression</h3>
+        <p>Linear and rank correlation, simple and multiple regression, with coefficients, r², confidence intervals, and residual checks.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M3 17c3-8 5 4 7-2s4 6 6 0 3-4 5-6"/></svg></div>
+        <h3>Trends and seasonality</h3>
+        <p>Where a date column exists, direction, rate of change, and repeating patterns are estimated — with a note on how much history it had to work with.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M5 4h14v6a7 7 0 0 1-14 0z"/><path d="M9 20h6M12 17v3"/></svg></div>
+        <h3>Assumption checks</h3>
+        <p>Normality, equal variance, independence, and sample size are tested first. When an assumption fails, the test changes and you're told why.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container detail">
+    <div>
+      <span class="eyebrow">The part people get wrong</span>
+      <h2 class="h2">A p-value is not a verdict.</h2>
+      <p class="lead">A tiny p-value on a huge dataset can describe an effect too small to matter. A large one on a small sample might just mean you didn't have enough rows. Data Lens always reports effect size and sample size next to significance, and writes the interpretation in words.</p>
+    </div>
+    <div class="dlist">
+      <div class="dlist__item" data-reveal><span class="dlist__k">01</span><div>
+        <h4>Effect size comes first</h4><p>How big is the difference, in the units you actually use? That's the headline. Significance is the supporting detail, not the other way round.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">02</span><div>
+        <h4>Intervals, not just points</h4><p>Every estimate ships with a confidence interval, so the uncertainty is visible instead of hidden behind a single number.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">03</span><div>
+        <h4>Many tests, adjusted</h4><p>Running hundreds of comparisons guarantees some false positives. Corrections are applied and stated, so a fishing expedition doesn't read as a discovery.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">04</span><div>
+        <h4>Every choice is shown</h4><p>Which test ran, which alternatives were rejected, and on what grounds — visible in the interface and recorded in the report.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section--tight">
+  <div class="container">
+    <div class="pn">
+      <a href="relationship-mapper.html"><small>Previous · Section 04</small><b>← Relationship Mapper</b></a>
+      <a href="chart-studio.html" class="pn--next"><small>Next · Section 06</small><b>Chart Studio →</b></a>
+    </div>
+  </div>
+</section>
+
+<section class="section cta">
+  <div class="cta__glow"></div>
+  <div class="container cta__in">
+    <h2>Get the test and the sentence that explains it.</h2>
+    <p class="muted">One is not much use without the other.</p>
+    <form class="cta__form" data-waitlist>
+      <input type="email" placeholder="you@company.com" required aria-label="Email address">
+      <button type="submit" class="btn btn-primary">Get early access</button>
+    </form>
+    <p class="cta__note">No spam. One email when it's ready.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container foot">
+    <div>
+      <a class="logo" href="index.html">
+        <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+        Data Lens
+      </a>
+      <p class="foot__tag">Exploratory data analysis for people who'd rather read the answer than write the query.</p>
+    </div>
+    <div><h5>Sections</h5><ul id="footSections"></ul></div>
+    <div><h5>Product</h5><ul>
+      <li><a href="index.html#how">How it works</a></li>
+      <li><a href="index.html#sections">All sections</a></li>
+      <li><a href="index.html#access">Get early access</a></li>
+    </ul></div>
+  </div>
+</footer>
+
+<script src="assets/gsap.min.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(function(){
+  var $=DL.$, $$=DL.$$;
+  var svg=$('#scatter');
+  var W=560,H=290,PAD_L=48,PAD_R=20,PAD_T=18,PAD_B=40;
+  var x0=PAD_L,x1=W-PAD_R,y0=H-PAD_B,y1=PAD_T;
+
+  /* deterministic pseudo-random so the picture is stable across reloads */
+  var seed=7;
+  function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+
+  var PTS=[], band, line, ciBand;
+  for(var i=0;i<44;i++){
+    var t=i/43;
+    var px=x0+18+t*(x1-x0-36)+(rnd()-.5)*16;
+    var base=y0-24-t*(y0-y1-52);
+    var py=base+(rnd()-.5)*54;
+    PTS.push({x:px,y:Math.max(y1+6,Math.min(y0-6,py))});
+  }
+
+  var dots=[];
+  function build(){
+    DL.clear(svg);
+    /* axes */
+    DL.svg('line',{x1:x0,y1:y0,x2:x1,y2:y0,stroke:'rgba(var(--fg-rgb),.12)','stroke-width':1},svg);
+    DL.svg('line',{x1:x0,y1:y0,x2:x0,y2:y1,stroke:'rgba(var(--fg-rgb),.12)','stroke-width':1},svg);
+    [.25,.5,.75,1].forEach(function(f){
+      var y=y0-f*(y0-y1);
+      DL.svg('line',{x1:x0,y1:y,x2:x1,y2:y,stroke:'rgba(var(--fg-rgb),.05)','stroke-width':1},svg);
+    });
+    var ax=DL.svg('text',{x:(x0+x1)/2,y:H-10,'text-anchor':'middle','font-size':10,fill:'#5b6180'},svg);
+    ax.textContent='ad_spend →';
+    var ay=DL.svg('text',{x:14,y:(y0+y1)/2,'text-anchor':'middle','font-size':10,fill:'#5b6180',
+      transform:'rotate(-90 14 '+((y0+y1)/2)+')'},svg);
+    ay.textContent='revenue →';
+
+    /* confidence band (drawn under the line) */
+    ciBand=DL.svg('path',{
+      d:'M '+(x0+16)+' '+(y0-14)+' L '+(x1-16)+' '+(y1+40)+' L '+(x1-16)+' '+(y1+8)+' L '+(x0+16)+' '+(y0-46)+' Z',
+      fill:'rgba(232,169,76,.10)', opacity:0
+    },svg);
+
+    /* regression line */
+    line=DL.svg('line',{x1:x0+16,y1:y0-30,x2:x1-16,y2:y1+24,
+      stroke:'#e8a94c','stroke-width':2.2,'stroke-linecap':'round',opacity:0},svg);
+
+    dots=PTS.map(function(p){
+      return DL.svg('circle',{cx:p.x,cy:p.y,r:0,fill:'#4fc9d6',opacity:.72},svg);
+    });
+  }
+  build();
+
+  var picks=$$('[data-pick]'), chosen=$('[data-final]'), result=$('#result'),
+      nums=$$('[data-n]'), pEl=$('[data-p]'), fit=$('#fitLabel');
+
+  DL.stage({
+    root:'#stage', caption:'#cap',
+    still:function(root,setCap){
+      dots.forEach(function(d){d.setAttribute('r',3.4);});
+      line.setAttribute('opacity',1); ciBand.setAttribute('opacity',1);
+      picks.forEach(function(p){ p.classList.add(p.hasAttribute('data-final')?'is-pick':'is-out'); });
+      result.style.opacity=1;
+      nums.forEach(function(n){
+        var d=+(n.getAttribute('data-dec')||0), v=parseFloat(n.getAttribute('data-n'));
+        n.textContent = d ? v.toFixed(d) : v.toLocaleString('en-US');
+      });
+      pEl.textContent='< 0.001';
+      fit.textContent='OLS · r² = 0.67';
+      setCap('Chosen test: <b>OLS regression</b> · strong positive relationship');
+    },
+    build:function(tl,setCap){
+      tl.call(function(){
+        dots.forEach(function(d){d.setAttribute('r',0);});
+        line.setAttribute('opacity',0); ciBand.setAttribute('opacity',0);
+        picks.forEach(function(p){ p.classList.remove('is-pick','is-out'); });
+        result.style.opacity=0;
+        nums.forEach(function(n){ n.textContent='0'; });
+        pEl.textContent='—'; fit.textContent='\u00a0';
+      });
+
+      /* 1 — the data appears */
+      tl.call(setCap,['1,248 rows, plotted as they are.'],.1);
+      dots.forEach(function(d,i){
+        tl.to(d,{attr:{r:3.4},duration:.3,ease:'back.out(2.5)'},.2+i*.028);
+      });
+
+      /* 2 — test selection */
+      tl.call(setCap,['Data Lens checks the assumptions, then picks a test.'],1.9);
+      picks.forEach(function(p,i){
+        if(p.hasAttribute('data-final')) return;
+        tl.call(function(){ p.classList.add('is-out'); },null,2.0+i*.42);
+      });
+      tl.call(function(){ chosen.classList.add('is-pick'); },null,3.4)
+        .fromTo(chosen,{scale:.96},{scale:1,duration:.45,ease:'back.out(2.4)'},3.4);
+
+      /* 3 — the fit */
+      tl.call(setCap,['Then fits it, and shows the uncertainty around the fit.'],4.2)
+        .to(line,{opacity:1,duration:.8,ease:'power2.out'},4.3)
+        .fromTo(line,{attr:{x2:x0+16,y2:y0-30}},{attr:{x2:x1-16,y2:y1+24},duration:1.0,ease:'power2.inOut'},4.3)
+        .to(ciBand,{opacity:1,duration:.7},5.1)
+        .call(function(){ fit.textContent='OLS · r² = 0.67'; },null,5.3);
+
+      /* 4 — numbers */
+      tl.call(setCap,['Coefficients, effect size, and sample size together.'],6.1)
+        .to(result,{opacity:1,duration:.5},6.1)
+        .call(function(){
+          nums.forEach(function(n){
+            var d=+(n.getAttribute('data-dec')||0);
+            DL.count(n,parseFloat(n.getAttribute('data-n')),{duration:1.1,decimals:d});
+          });
+          setTimeout(function(){ pEl.textContent='< 0.001'; },700);
+        },null,6.2);
+
+      /* 5 — the sentence */
+      tl.call(setCap,['And a sentence saying what it actually means.'],8.4)
+        .fromTo('#verdict',{opacity:0,y:10},{opacity:1,y:0,duration:.6,ease:'power2.out'},8.5);
+
+      tl.call(setCap,['Chosen test: <b>OLS regression</b> · strong positive relationship'],10.6)
+        .to({},{duration:2.2},10.6);
+    }
+  });
+})();
+</script>
+</body>
+</html>

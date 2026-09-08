@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("dl-theme");if(t==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Directory Analyser — Data Lens</title>
+<meta name="description" content="Point Data Lens at a folder and every file, sheet, and nested subfolder is opened, counted, and checked before anything is analysed.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+.dirstage{display:grid;grid-template-columns:1.25fr .95fr;gap:clamp(1rem,3vw,2rem)}
+@media(max-width:820px){.dirstage{grid-template-columns:1fr}}
+
+.tree{position:relative;font-family:var(--mono);font-size:.78rem;overflow:hidden;
+  border:1px solid var(--line);border-radius:12px;padding:.9rem .8rem;background:rgba(var(--bg-rgb),.45)}
+.trow{display:flex;align-items:center;gap:.55rem;padding:.32rem .5rem;border-radius:7px;opacity:0}
+.trow[data-d="1"]{margin-left:1.15rem}
+.trow[data-d="2"]{margin-left:2.3rem}
+.trow__ico{width:12px;height:12px;flex:none;stroke-width:1.6;fill:none;stroke:var(--dim)}
+.trow--dir .trow__ico{stroke:var(--amber)}
+.trow__name{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow--dir .trow__name{color:var(--text)}
+.trow__tag{font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);
+  border:1px solid var(--line);border-radius:4px;padding:.05rem .3rem;flex:none}
+.trow__tag.t-csv{color:var(--cyan-soft);border-color:rgba(79,201,214,.3)}
+.trow__tag.t-xml{color:var(--amber-soft);border-color:rgba(232,169,76,.3)}
+.trow__tag.t-xlsx{color:var(--green);border-color:rgba(110,207,160,.3)}
+.trow__tag.t-skip{color:var(--dim)}
+.trow__meta{margin-left:auto;color:var(--dim);font-size:.7rem;opacity:0;white-space:nowrap;flex:none}
+.trow.is-flag{background:rgba(224,138,138,.09)}
+.tbeam{position:absolute;left:0;right:0;height:34px;top:0;opacity:0;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(165,234,241,.13),rgba(165,234,241,.34),transparent);
+  border-bottom:1px solid rgba(165,234,241,.55)}
+
+.inv{display:flex;flex-direction:column;gap:.8rem}
+.inv__box{border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem;background:rgba(var(--bg-rgb),.45)}
+.inv__h{font-family:var(--mono);font-size:.66rem;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin-bottom:.85rem}
+.inv__nums{display:grid;grid-template-columns:1fr 1fr;gap:.85rem .6rem}
+.inv__nums div dt{font-family:var(--mono);font-size:.63rem;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:.18rem}
+.inv__nums div dd{font-family:var(--display);font-size:1.4rem;font-weight:600}
+.flag{display:flex;gap:.6rem;align-items:flex-start;font-family:var(--mono);font-size:.72rem;
+  color:var(--muted);padding:.5rem .6rem;border-radius:8px;background:rgba(255,255,255,.03);
+  border:1px solid var(--line);opacity:0;margin-bottom:.45rem;line-height:1.45}
+.flag:last-child{margin-bottom:0}
+.flag i{width:7px;height:7px;border-radius:50%;flex:none;margin-top:.32rem;font-style:normal;background:var(--amber)}
+.flag.f-dup i{background:var(--violet)}
+.flag b{color:var(--text);font-weight:500}
+</style>
+</head>
+<body data-page="directory-analyser">
+
+<nav class="nav">
+  <div class="nav__in">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+      Data Lens
+    </a>
+    <button class="nav__burger" id="navBurger" aria-expanded="false" aria-label="All sections"><span></span><span></span><span></span></button>
+  </div>
+  <div class="nav__panel" id="navPanel"></div>
+</nav>
+
+<header class="phero">
+  <div class="container">
+    <span class="phero__badge">Section 01 <em>of 07</em></span>
+    <h1>Every file in the folder, <em>accounted for.</em></h1>
+    <p class="phero__sub">Point Data Lens at a directory and it opens everything inside — nested subfolders, mixed formats, workbooks with a dozen sheets. You get an inventory before you get an analysis.</p>
+    <div class="phero__meta">
+      <span class="chip chip--on">nested folders</span>
+      <span class="chip">multi-sheet workbooks</span>
+      <span class="chip">duplicate detection</span>
+      <span class="chip">parse health</span>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="stage__bar">
+        <span>directory scan · <b>/quarterly-reports</b></span>
+        <span class="stage__dots"><i></i><i></i><i></i></span>
+      </div>
+      <div class="stage__body">
+        <div class="dirstage">
+          <div class="tree" id="tree">
+            <div class="trow trow--dir" data-d="0"><svg class="trow__ico" viewBox="0 0 16 16"><path d="M1.5 4.5h5l1.5 2h6.5v7h-13z"/></svg><span class="trow__name">/quarterly-reports</span><span class="trow__meta">8 files</span></div>
+            <div class="trow" data-d="1"><svg class="trow__ico" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9z"/></svg><span class="trow__name">sales_q3.csv</span><span class="trow__tag t-csv">csv</span><span class="trow__meta">1,248 rows</span></div>
+            <div class="trow" data-d="1"><svg class="trow__ico" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9z"/></svg><span class="trow__name">marketing.csv</span><span class="trow__tag t-csv">csv</span><span class="trow__meta">1,248 rows</span></div>
+            <div class="trow" data-d="1"><svg class="trow__ico" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9z"/></svg><span class="trow__name">targets.xml</span><span class="trow__tag t-xml">xml</span><span class="trow__meta">96 nodes</span></div>
+            <div class="trow trow--dir" data-d="1"><svg class="trow__ico" viewBox="0 0 16 16"><path d="M1.5 4.5h5l1.5 2h6.5v7h-13z"/></svg><span class="trow__name">/archive</span><span class="trow__meta">2 files</span></div>
+            <div class="trow" data-d="2"><svg class="trow__ico" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9z"/></svg><span class="trow__name">sales_q2.csv</span><span class="trow__tag t-csv">csv</span><span class="trow__meta">1,190 rows</span></div>
+            <div class="trow" data-d="2"><svg class="trow__ico" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9z"/></svg><span class="trow__name">sales_q3_final.csv</span><span class="trow__tag t-csv">csv</span><span class="trow__meta">1,248 rows</span></div>
+            <div class="trow" data-d="1"><svg class="trow__ico" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9z"/></svg><span class="trow__name">regions.csv</span><span class="trow__tag t-csv">csv</span><span class="trow__meta">28 rows</span></div>
+            <div class="trow" data-d="1" data-flag><svg class="trow__ico" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9z"/></svg><span class="trow__name">catalog.xlsx</span><span class="trow__tag t-xlsx">xlsx</span><span class="trow__meta">3 sheets</span></div>
+            <div class="trow" data-d="1" data-flag><svg class="trow__ico" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9z"/></svg><span class="trow__name">returns.csv</span><span class="trow__tag t-csv">csv</span><span class="trow__meta">312 rows</span></div>
+            <div class="trow" data-d="1"><svg class="trow__ico" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9z"/></svg><span class="trow__name">notes.txt</span><span class="trow__tag t-skip">skip</span><span class="trow__meta">not tabular</span></div>
+            <div class="tbeam" id="beam"></div>
+          </div>
+
+          <div class="inv">
+            <div class="inv__box">
+              <div class="inv__h">Inventory</div>
+              <div class="inv__nums">
+                <div><dt>Files</dt><dd data-n="9">0</dd></div>
+                <div><dt>Sheets</dt><dd data-n="12">0</dd></div>
+                <div><dt>Rows</dt><dd data-n="5274">0</dd></div>
+                <div><dt>Columns</dt><dd data-n="47">0</dd></div>
+              </div>
+            </div>
+            <div class="inv__box">
+              <div class="inv__h">Needs attention</div>
+              <div class="flag" id="ghostFlag" style="opacity:.55"><i style="background:var(--dim)"></i><span>Waiting for the scan to finish…</span></div>
+              <div class="flag" data-flagrow><i></i><span><b>catalog.xlsx</b> — merged header cells on sheet 2, headers rebuilt</span></div>
+              <div class="flag" data-flagrow><i></i><span><b>returns.csv</b> — delimiter changes at row 188, re-parsed</span></div>
+              <div class="flag f-dup" data-flagrow><i></i><span><b>sales_q3_final.csv</b> — 99% identical to sales_q3.csv</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stage__cap" id="cap"></div>
+    </div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container">
+    <span class="eyebrow">What it does</span>
+    <h2 class="h2" style="max-width:30rem">Before it analyses anything, it opens everything.</h2>
+    <div class="grid grid-4" style="margin-top:2.4rem">
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M3 6.5h6l2 2.5h10V19H3z"/></svg></div>
+        <h3>Reads nested folders</h3>
+        <p>Subfolders, archives, and workbooks with a dozen sheets are all walked in a single pass. Nothing gets skipped because it was one level down.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V5M16 20v-8M22 20H2"/></svg></div>
+        <h3>Counts what's there</h3>
+        <p>Files, sheets, rows, columns, and total size — measured up front, so you know the scale of the job before anything loads into memory.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg></div>
+        <h3>Flags what's broken</h3>
+        <p>Merged header cells, shifting delimiters, empty sheets, files that failed to parse — listed with what Data Lens did about each one.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></div>
+        <h3>Spots duplicates</h3>
+        <p>Files with identical or near-identical contents get grouped, so you don't analyse last quarter's export twice under two different names.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container detail">
+    <div>
+      <span class="eyebrow">How it reads a folder</span>
+      <h2 class="h2">Four passes, all before you see a chart.</h2>
+      <p class="lead">Directory analysis is deliberately cheap. Data Lens does the smallest amount of work needed to describe what's in front of it, then asks whether you want the full run.</p>
+    </div>
+    <div class="dlist">
+      <div class="dlist__item" data-reveal><span class="dlist__k">01</span><div>
+        <h4>Walk</h4><p>Every path is enumerated and matched against supported formats. Unsupported files are listed rather than silently dropped, so you always know what wasn't read.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">02</span><div>
+        <h4>Peek</h4><p>Only the first few hundred rows of each file are read to infer structure. A 400 MB workbook costs the same at this stage as a 4 KB one.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">03</span><div>
+        <h4>Check</h4><p>Headers, delimiters, encodings, and sheet contents are validated. Anything ambiguous is repaired where it's safe to, and reported where it isn't.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">04</span><div>
+        <h4>Fingerprint</h4><p>Each file gets a content hash and a column signature, which is how near-duplicates and renamed exports are grouped together.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section--tight">
+  <div class="container">
+    <div class="pn">
+      <a href="index.html"><small>Back to</small><b>All sections</b></a>
+      <a href="schema-analyser.html" class="pn--next"><small>Next · Section 02</small><b>Schema Analyser →</b></a>
+    </div>
+  </div>
+</section>
+
+<section class="section cta">
+  <div class="cta__glow"></div>
+  <div class="container cta__in">
+    <h2>Try it on your messiest folder.</h2>
+    <p class="muted">That's the one it's built for.</p>
+    <form class="cta__form" data-waitlist>
+      <input type="email" placeholder="you@company.com" required aria-label="Email address">
+      <button type="submit" class="btn btn-primary">Get early access</button>
+    </form>
+    <p class="cta__note">No spam. One email when it's ready.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container foot">
+    <div>
+      <a class="logo" href="index.html">
+        <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+        Data Lens
+      </a>
+      <p class="foot__tag">Exploratory data analysis for people who'd rather read the answer than write the query.</p>
+    </div>
+    <div><h5>Sections</h5><ul id="footSections"></ul></div>
+    <div><h5>Product</h5><ul>
+      <li><a href="index.html#how">How it works</a></li>
+      <li><a href="index.html#sections">All sections</a></li>
+      <li><a href="index.html#access">Get early access</a></li>
+    </ul></div>
+  </div>
+</footer>
+
+<script src="assets/gsap.min.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(function(){
+  var $=DL.$, $$=DL.$$;
+  var ghost=$('#ghostFlag');
+  var rows=$$('.trow'), metas=$$('.trow__meta'), flags=$$('[data-flagrow]'),
+      nums=$$('.inv__nums dd'), beam=$('#beam'), tree=$('#tree');
+
+  DL.stage({
+    root:'#stage', caption:'#cap',
+    still:function(root,setCap){
+      rows.forEach(function(r){r.style.opacity=1;});
+      metas.forEach(function(m){m.style.opacity=1;});
+      flags.forEach(function(f){f.style.opacity=1;});
+      ghost.style.display='none';
+      nums.forEach(function(n){n.textContent=parseInt(n.getAttribute('data-n'),10).toLocaleString('en-US');});
+      $$('[data-flag]').forEach(function(r){r.classList.add('is-flag');});
+      setCap('9 files · 12 sheets · 5,274 rows · <b>3 things to look at</b>');
+    },
+    build:function(tl,setCap){
+      tl.set(ghost,{opacity:.55,display:'flex'})
+        .set(rows,{opacity:0,x:-10})
+        .set(metas,{opacity:0})
+        .set(flags,{opacity:0,y:8})
+        .set(beam,{opacity:0,y:-40})
+        .call(function(){
+          nums.forEach(function(n){n.textContent='0';});
+          $$('[data-flag]').forEach(function(r){r.classList.remove('is-flag');});
+        });
+
+      /* 1 — the tree builds itself */
+      tl.call(setCap,['Opening every file in the folder — including the nested ones.'],.1)
+        .to(rows,{opacity:1,x:0,duration:.34,stagger:.16,ease:'power2.out'},.2);
+
+      /* 2 — scan pass fills in the counts */
+      tl.call(setCap,['Peeking inside each one to count sheets, rows, and columns.'],2.5)
+        .set(beam,{opacity:1,y:-40},2.6)
+        .to(beam,{y:tree.clientHeight,duration:2.1,ease:'none'},2.6)
+        .to(metas,{opacity:1,duration:.3,stagger:.17},2.75)
+        .to(beam,{opacity:0,duration:.3},4.6);
+
+      /* 3 — inventory counts up */
+      tl.call(setCap,['You get an inventory before you get an analysis.'],4.9)
+        .call(function(){
+          nums.forEach(function(n,i){
+            DL.count(n,parseInt(n.getAttribute('data-n'),10),{duration:1.2,ease:'power2.out'});
+          });
+        },null,5.0);
+
+      /* 4 — health flags */
+      tl.call(setCap,['Then a short list of what needs a human to look at it.'],7.2)
+        .call(function(){ $$('[data-flag]').forEach(function(r){r.classList.add('is-flag');}); },null,7.3)
+        .to(ghost,{opacity:0,height:0,marginBottom:0,paddingTop:0,paddingBottom:0,duration:.4},7.3)
+        .to(flags,{opacity:1,y:0,duration:.5,stagger:.35,ease:'power2.out'},7.4);
+
+      /* 5 — hold, then reset */
+      tl.call(setCap,['9 files · 12 sheets · 5,274 rows · <b>3 things to look at</b>'],10.2)
+        .to({},{duration:2.4},10.2);
+    }
+  });
+})();
+</script>
+</body>
+</html>
