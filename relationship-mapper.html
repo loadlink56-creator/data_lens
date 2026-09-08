@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("dl-theme");if(t==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relationship Mapper — Data Lens</title>
+<meta name="description" content="Join keys, match rates, cardinality, and correlations across your whole folder — drawn as a map you can read at a glance.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+.mapstage{position:relative}
+.maptabs{display:flex;gap:.4rem;margin-bottom:1rem}
+.maptab{font-family:var(--mono);font-size:.7rem;color:var(--dim);border:1px solid var(--line);
+  border-radius:999px;padding:.3rem .8rem;transition:color .35s,border-color .35s,background .35s}
+.maptab.is-on{color:var(--bg);background:var(--amber-soft);border-color:var(--amber-soft)}
+.panes{position:relative;height:clamp(270px,33vw,360px)}
+.panes .stg-svg{width:100%;height:100%}
+.pane{position:absolute;inset:0;opacity:0}
+.pane--on{opacity:1}
+
+
+.findings{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem;justify-content:center}
+.findings .pill{opacity:0}
+</style>
+</head>
+<body data-page="relationship-mapper">
+
+<nav class="nav">
+  <div class="nav__in">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+      Data Lens
+    </a>
+    <button class="nav__burger" id="navBurger" aria-expanded="false" aria-label="All sections"><span></span><span></span><span></span></button>
+  </div>
+  <div class="nav__panel" id="navPanel"></div>
+</nav>
+
+<header class="phero">
+  <div class="container">
+    <span class="phero__badge">Section 04 <em>of 07</em></span>
+    <h1>See how every file <em>connects.</em></h1>
+    <p class="phero__sub">Your folder isn't a pile of separate spreadsheets — it's one dataset that got split up. Data Lens finds the columns that link them, checks how well they actually match, and shows you what moves together.</p>
+    <div class="phero__meta">
+      <span class="chip chip--on">join key discovery</span>
+      <span class="chip">match rates</span>
+      <span class="chip">cardinality</span>
+      <span class="chip">correlation matrix</span>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="stage__bar">
+        <span>relationship map · <b>5 tables · 12 candidate links</b></span>
+        <span class="stage__dots"><i></i><i></i><i></i></span>
+      </div>
+      <div class="stage__body mapstage">
+        <div class="maptabs">
+          <span class="maptab is-on" id="tabA">joins</span>
+          <span class="maptab" id="tabB">correlations</span>
+        </div>
+        <div class="panes">
+          <div class="pane pane--on" id="paneA"><svg class="stg-svg" id="graph" viewBox="0 0 720 320" preserveAspectRatio="xMidYMid meet"></svg></div>
+          <div class="pane" id="paneB"><svg class="stg-svg" id="heat" viewBox="0 0 620 350" preserveAspectRatio="xMidYMid meet"></svg></div>
+        </div>
+        <div class="findings">
+          <span class="pill" data-find><i></i>orders → customers · 1:many · 99.8% matched</span>
+          <span class="pill pill--amber" data-find><i></i>returns → orders · 3 orphan rows</span>
+          <span class="pill pill--green" data-find><i></i>revenue ~ ad_spend · r = 0.82</span>
+        </div>
+      </div>
+      <div class="stage__cap" id="cap"></div>
+    </div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container">
+    <span class="eyebrow">What it finds</span>
+    <h2 class="h2" style="max-width:32rem">Two kinds of relationship, both worth knowing.</h2>
+    <div class="grid grid-4" style="margin-top:2.4rem">
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M9 12H4a2 2 0 0 1 0-4h5M15 12h5a2 2 0 0 0 0-4h-5"/><path d="M8 10h8"/><path d="M12 14v6M9 18l3 3 3-3"/></svg></div>
+        <h3>Join keys</h3>
+        <p>Columns that link one file to another, found by comparing actual values — not by trusting that two columns with the same name mean the same thing.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M4 6h6M4 12h6M4 18h6"/><path d="M14 12h6"/><circle cx="12" cy="12" r="1"/></svg></div>
+        <h3>Cardinality and match rate</h3>
+        <p>One-to-one, one-to-many, or many-to-many — with the percentage of rows that actually find a partner, so you know before you join.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+        <h3>Correlation matrix</h3>
+        <p>Every numeric column against every other, across files, with weak noise filtered out so only the pairs worth reading remain.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/><path d="M4 4l16 16"/></svg></div>
+        <h3>Orphans</h3>
+        <p>Rows that reference something that isn't there — returns without an order, orders without a customer — counted and listed.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container detail">
+    <div>
+      <span class="eyebrow">A caution worth stating</span>
+      <h2 class="h2">Correlation is a starting point, not a conclusion.</h2>
+      <p class="lead">Data Lens will tell you revenue and ad spend move together. It won't tell you one caused the other, and it won't pretend to. Every correlation comes with its sample size, its confidence interval, and a note when the relationship is driven by a handful of points.</p>
+    </div>
+    <div class="dlist">
+      <div class="dlist__item" data-reveal><span class="dlist__k">01</span><div>
+        <h4>Values, not names</h4><p>Key detection compares overlapping value sets. A column called <span class="mono">id</span> in two files only gets linked if the values genuinely correspond.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">02</span><div>
+        <h4>Fuzzy keys, flagged as fuzzy</h4><p>Near-matches from whitespace, casing, or leading zeros are found and reported separately from exact matches, so you decide whether to accept them.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">03</span><div>
+        <h4>Spurious pairs get filtered</h4><p>With enough columns, something will correlate by chance. Data Lens adjusts for multiple comparisons and marks the pairs that don't survive it.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">04</span><div>
+        <h4>Non-linear too</h4><p>Pearson misses curved relationships. Spearman and mutual information run alongside it, so a strong non-linear link doesn't get scored as zero.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section--tight">
+  <div class="container">
+    <div class="pn">
+      <a href="column-profiler.html"><small>Previous · Section 03</small><b>← Column Profiler</b></a>
+      <a href="statistics-lab.html" class="pn--next"><small>Next · Section 05</small><b>Statistics Lab →</b></a>
+    </div>
+  </div>
+</section>
+
+<section class="section cta">
+  <div class="cta__glow"></div>
+  <div class="container cta__in">
+    <h2>Stop joining files by guesswork.</h2>
+    <p class="muted">See the links before you write them.</p>
+    <form class="cta__form" data-waitlist>
+      <input type="email" placeholder="you@company.com" required aria-label="Email address">
+      <button type="submit" class="btn btn-primary">Get early access</button>
+    </form>
+    <p class="cta__note">No spam. One email when it's ready.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container foot">
+    <div>
+      <a class="logo" href="index.html">
+        <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+        Data Lens
+      </a>
+      <p class="foot__tag">Exploratory data analysis for people who'd rather read the answer than write the query.</p>
+    </div>
+    <div><h5>Sections</h5><ul id="footSections"></ul></div>
+    <div><h5>Product</h5><ul>
+      <li><a href="index.html#how">How it works</a></li>
+      <li><a href="index.html#sections">All sections</a></li>
+      <li><a href="index.html#access">Get early access</a></li>
+    </ul></div>
+  </div>
+</footer>
+
+<script src="assets/gsap.min.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(function(){
+  var $=DL.$, $$=DL.$$;
+  var g=$('#graph'), h=$('#heat');
+
+  /* ---------- join graph ---------- */
+  var NODES=[
+    {id:'customers', x:120, y:70,  c:'#4fc9d6'},
+    {id:'orders',    x:360, y:160, c:'#e8a94c'},
+    {id:'products',  x:120, y:250, c:'#4fc9d6'},
+    {id:'marketing', x:600, y:80,  c:'#8b7fd4'},
+    {id:'returns',   x:600, y:245, c:'#8b7fd4'}
+  ];
+  var EDGES=[
+    {a:0,b:1,label:'customer_id · 1:many · 99.8%',  kind:'ok'},
+    {a:2,b:1,label:'sku · 1:many · 100%',            kind:'ok'},
+    {a:1,b:3,label:'region + month · many:many',     kind:'soft'},
+    {a:1,b:4,label:'order_id · 3 orphans',           kind:'warn'}
+  ];
+
+  var nodeEls=[], edgeEls=[], edgeLabs=[];
+
+  function buildGraph(){
+    DL.clear(g);
+    var narrow = window.innerWidth < 780;
+    var sx = narrow ? 0.56 : 1;
+    g.setAttribute('viewBox', narrow ? '0 0 404 330' : '0 0 720 320');
+    var eg=DL.svg('g',{},g), ng=DL.svg('g',{},g), lg=DL.svg('g',{},g);
+    edgeEls=[]; edgeLabs=[]; nodeEls=[];
+
+    EDGES.forEach(function(e){
+      var A={x:NODES[e.a].x*sx,y:NODES[e.a].y}, B={x:NODES[e.b].x*sx,y:NODES[e.b].y};
+      var mx=(A.x+B.x)/2, my=(A.y+B.y)/2 - 26;
+      var col = e.kind==='warn' ? '#e08a8a' : (e.kind==='soft' ? '#8b7fd4' : '#4fc9d6');
+      var p=DL.svg('path',{
+        d:'M '+A.x+' '+A.y+' Q '+mx+' '+my+' '+B.x+' '+B.y,
+        fill:'none', stroke:col, 'stroke-width': e.kind==='soft'?1.3:1.9,
+        opacity:.75, 'stroke-linecap':'round'
+      },eg);
+      if(e.kind==='soft') p.setAttribute('stroke-dasharray','5 5');
+      var len=p.getTotalLength();
+      p.style.strokeDasharray = e.kind==='soft' ? '5 5' : len;
+      p.style.strokeDashoffset = e.kind==='soft' ? 0 : len;
+      p.setAttribute('data-len',len);
+      p.setAttribute('data-kind',e.kind);
+      edgeEls.push(p);
+
+      if(narrow){ edgeLabs.push(DL.svg('g',{opacity:0},lg)); return; }
+      var mid=p.getPointAtLength(len*.5);
+      var lgg=DL.svg('g',{opacity:0},lg);
+      var w=e.label.length*6.1+16;
+      DL.svg('rect',{x:mid.x-w/2,y:mid.y-10,width:w,height:20,rx:10,
+        fill:'#101728',stroke:'rgba(var(--fg-rgb),.14)'},lgg);
+      var t=DL.svg('text',{x:mid.x,y:mid.y+3.6,'text-anchor':'middle','font-size':9.5,
+        fill: e.kind==='warn'?'#e08a8a':'#8b92a9'},lgg);
+      t.textContent=e.label;
+      edgeLabs.push(lgg);
+    });
+
+    NODES.forEach(function(n){
+      var nx=n.x*sx;
+      var gg=DL.svg('g',{opacity:0},ng);
+      DL.svg('circle',{cx:nx,cy:n.y,r:34,fill:'#101728',stroke:n.c,'stroke-width':1.6},gg);
+      DL.svg('circle',{cx:nx,cy:n.y,r:43,fill:'none',stroke:n.c,'stroke-width':1,opacity:.18},gg);
+      var t=DL.svg('text',{x:nx,y:n.y+4,'text-anchor':'middle','font-size':10.5,fill:'#f2f0e8'},gg);
+      t.textContent=n.id;
+      nodeEls.push(gg);
+    });
+  }
+
+  /* ---------- correlation heatmap ---------- */
+  var COLS=['revenue','units','ad_spend','clicks','discount','returns'];
+  var M=[
+    [1,   .93, .82, .74, -.31, .12],
+    [.93, 1,   .77, .81, -.28, .18],
+    [.82, .77, 1,   .95, -.06, .09],
+    [.74, .81, .95, 1,   -.11, .14],
+    [-.31,-.28,-.06,-.11, 1,   .46],
+    [.12, .18, .09, .14, .46,  1  ]
+  ];
+  var cells=[];
+
+  function buildHeat(){
+    DL.clear(h);
+    cells=[];
+    var narrow = window.innerWidth < 780;
+    var CS = narrow ? 40 : 44;
+    var X0 = narrow ? 96 : 212, Y0 = narrow ? 54 : 58;
+    h.setAttribute('viewBox', narrow ? '0 0 380 320' : '0 0 620 350');
+    COLS.forEach(function(c,i){
+      var t=DL.svg('text',{x:X0-10,y:Y0+i*CS+CS/2+3.5,'text-anchor':'end','font-size':9.5,fill:'#8b92a9'},h);
+      t.textContent=c;
+      var tx2=X0+i*CS+CS/2, ty2=Y0-12;
+      var t2=DL.svg('text',{x:tx2,y:ty2,'text-anchor':'start','font-size':9.5,fill:'#8b92a9',
+        transform:'rotate(-45 '+tx2+' '+ty2+')'},h);
+      t2.textContent=c;
+    });
+    for(var r=0;r<COLS.length;r++){
+      for(var c=0;c<COLS.length;c++){
+        var v=M[r][c];
+        var col = v>=0 ? '232,169,76' : '79,201,214';
+        var rect=DL.svg('rect',{
+          x:X0+c*CS+2, y:Y0+r*CS+2, width:CS-4, height:CS-4, rx:4,
+          fill:'rgba('+col+','+(0.08+Math.abs(v)*0.78).toFixed(2)+')',
+          stroke: Math.abs(v)>=.8 && r!==c ? 'rgba(232,169,76,.85)':'transparent',
+          'stroke-width':1.2, opacity:0
+        },h);
+        var txt=DL.svg('text',{x:X0+c*CS+CS/2,y:Y0+r*CS+CS/2+3.5,'text-anchor':'middle',
+          'font-size':9,fill: Math.abs(v)>.75 ? '#0a0d18' : '#d3d8ea', opacity:0},h);
+        txt.textContent = r===c ? '1' : v.toFixed(2).replace('0.','.');
+        cells.push({rect:rect,txt:txt,d:r+c});
+      }
+    }
+  }
+
+  buildGraph(); buildHeat();
+
+  var paneA=$('#paneA'), paneB=$('#paneB'), tabA=$('#tabA'), tabB=$('#tabB'),
+      finds=$$('[data-find]');
+
+  function showPane(which){
+    tabA.classList.toggle('is-on',which==='a');
+    tabB.classList.toggle('is-on',which==='b');
+  }
+
+  DL.stage({
+    root:'#stage', caption:'#cap',
+    still:function(root,setCap){
+      nodeEls.forEach(function(n){n.setAttribute('opacity',1);});
+      edgeEls.forEach(function(e){e.style.strokeDashoffset=0;});
+      edgeLabs.forEach(function(l){l.setAttribute('opacity',1);});
+      cells.forEach(function(c){c.rect.setAttribute('opacity',1);c.txt.setAttribute('opacity',1);});
+      finds.forEach(function(f){f.style.opacity=1;});
+      paneA.style.opacity=1;
+      setCap('5 tables linked · <b>1 join needs attention</b>');
+    },
+    build:function(tl,setCap){
+      buildGraph(); buildHeat();
+      tl.set(nodeEls,{opacity:0,scale:.6,transformOrigin:'center'})
+        .set(edgeLabs,{opacity:0})
+        .set(finds,{opacity:0,y:6})
+        .set(paneA,{opacity:1}).set(paneB,{opacity:0})
+        .call(function(){
+          showPane('a');
+          edgeEls.forEach(function(e){
+            if(e.getAttribute('data-kind')==='soft'){ e.style.opacity=0; }
+            else { e.style.strokeDashoffset=e.getAttribute('data-len'); }
+          });
+          cells.forEach(function(c){ c.rect.setAttribute('opacity',0); c.txt.setAttribute('opacity',0); });
+        });
+
+      /* 1 — tables appear */
+      tl.call(setCap,['Every table in the folder, laid out.'],.1)
+        .to(nodeEls,{opacity:1,scale:1,duration:.5,stagger:.16,ease:'back.out(1.6)'},.2);
+
+      /* 2 — join keys draw */
+      tl.call(setCap,['Data Lens compares values to find the columns that link them.'],1.5);
+      edgeEls.forEach(function(e,i){
+        var len=+e.getAttribute('data-len');
+        if(e.getAttribute('data-kind')==='soft'){
+          tl.to(e,{opacity:.75,duration:.5},1.6+i*.55);
+        }else{
+          tl.to(e,{strokeDashoffset:0,duration:.8,ease:'power2.inOut'},1.6+i*.55);
+        }
+        tl.to(edgeLabs[i],{opacity:1,duration:.35},2.1+i*.55);
+      });
+
+      /* 3 — the warning */
+      tl.call(setCap,['Including the one where three rows have nothing to match.'],4.4)
+        .fromTo(edgeEls[3],{opacity:.75},{opacity:1,duration:.45,yoyo:true,repeat:3},4.5);
+
+      /* 4 — switch to correlations */
+      tl.call(setCap,['Then every numeric column, against every other.'],6.4)
+        .call(function(){ showPane('b'); },null,6.4)
+        .to(paneA,{opacity:0,duration:.5},6.4)
+        .to(paneB,{opacity:1,duration:.5},6.6);
+
+      cells.forEach(function(c){
+        tl.to([c.rect,c.txt],{opacity:1,duration:.3,ease:'power2.out'},7.0+c.d*.075);
+      });
+
+      /* 5 — findings */
+      tl.call(setCap,['The strong pairs get outlined. The noise gets filtered out.'],9.4)
+        .to(finds,{opacity:1,y:0,duration:.45,stagger:.3,ease:'power2.out'},9.5);
+
+      tl.call(setCap,['5 tables linked · <b>1 join needs attention</b>'],11.6)
+        .to({},{duration:2.2},11.6);
+    }
+  });
+})();
+</script>
+</body>
+</html>

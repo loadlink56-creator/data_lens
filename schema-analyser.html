@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("dl-theme");if(t==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schema Analyser — Data Lens</title>
+<meta name="description" content="Data Lens infers a real type for every column, scores its confidence, finds candidate keys, and checks that each column means the same thing in every file.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+.schema{display:grid;grid-template-columns:1.1fr 1fr;gap:clamp(1rem,3vw,2rem)}
+@media(max-width:860px){.schema{grid-template-columns:1fr}}
+
+.cols{border:1px solid var(--line);border-radius:12px;background:rgba(var(--bg-rgb),.45);overflow:hidden}
+.cols__h,.crow{display:grid;grid-template-columns:1.35fr .85fr 1fr;align-items:center;gap:.7rem;
+  padding:.55rem .9rem;font-family:var(--mono);font-size:.74rem}
+.cols__h{font-size:.63rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--line)}
+.crow{border-bottom:1px solid rgba(var(--fg-rgb),.04);opacity:0}
+.crow:last-child{border-bottom:none}
+.crow__name{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crow__type{color:var(--dim);transition:color .25s}
+.crow.is-locked .crow__type{color:var(--cyan-soft)}
+.crow.is-locked[data-t="number"] .crow__type{color:var(--amber-soft)}
+.crow.is-locked[data-t="date"] .crow__type{color:var(--violet)}
+.crow.is-locked[data-t="category"] .crow__type{color:var(--green)}
+.conf{position:relative;height:4px;border-radius:3px;background:rgba(var(--fg-rgb),.09);overflow:hidden}
+.conf i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--cyan),var(--amber));font-style:normal}
+.cols__f{font-family:var(--mono);font-size:.66rem;color:var(--dim);padding:.7rem .9rem;border-top:1px solid var(--line);margin-top:auto}
+.cols{display:flex;flex-direction:column}
+.crow__key{grid-column:1/-1;font-size:.66rem;color:var(--amber-soft);opacity:0;padding-top:.15rem}
+
+.drift{display:flex;flex-direction:column;gap:.8rem}
+.dbox{border:1px solid var(--line);border-radius:12px;padding:1rem 1.05rem;background:rgba(var(--bg-rgb),.45)}
+.dbox__h{font-family:var(--mono);font-size:.64rem;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin-bottom:.85rem}
+.variant{display:flex;align-items:center;gap:.6rem;font-family:var(--mono);font-size:.72rem;
+  color:var(--muted);padding:.36rem .1rem;opacity:0}
+.variant code{color:var(--text);background:rgba(255,255,255,.05);border-radius:4px;padding:.1rem .35rem}
+.variant span{margin-left:auto;color:var(--dim);font-size:.66rem;white-space:nowrap}
+.merge{display:flex;align-items:center;gap:.55rem;font-family:var(--mono);font-size:.74rem;
+  color:var(--cyan-soft);margin-top:.7rem;padding-top:.7rem;border-top:1px solid var(--line);opacity:0}
+.merge b{color:var(--text);font-weight:500}
+
+.dgrid{display:grid;grid-template-columns:1.1fr repeat(3,1fr);gap:.35rem;font-family:var(--mono);font-size:.66rem}
+.dgrid div{padding:.34rem .3rem;border-radius:5px;text-align:center;color:var(--dim);background:rgba(255,255,255,.03)}
+.dgrid .hd{background:none;color:var(--dim);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase}
+.dgrid .rl{text-align:left;background:none;color:var(--muted)}
+.dgrid .ok{color:var(--green)}
+.dgrid .bad{color:var(--rose);background:rgba(224,138,138,.14);opacity:0}
+.driftnote{font-family:var(--mono);font-size:.7rem;color:var(--rose);margin-top:.75rem;opacity:0;line-height:1.5}
+</style>
+</head>
+<body data-page="schema-analyser">
+
+<nav class="nav">
+  <div class="nav__in">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+      Data Lens
+    </a>
+    <button class="nav__burger" id="navBurger" aria-expanded="false" aria-label="All sections"><span></span><span></span><span></span></button>
+  </div>
+  <div class="nav__panel" id="navPanel"></div>
+</nav>
+
+<header class="phero">
+  <div class="container">
+    <span class="phero__badge">Section 02 <em>of 07</em></span>
+    <h1>Know what every column <em>actually holds.</em></h1>
+    <p class="phero__sub">A column called <span class="mono">date</span> might hold four different formats. A column called <span class="mono">id</span> might not be unique. Data Lens reads the values, not the header, and tells you what it found.</p>
+    <div class="phero__meta">
+      <span class="chip chip--on">type inference</span>
+      <span class="chip">key detection</span>
+      <span class="chip">naming variants</span>
+      <span class="chip">schema drift</span>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="stage__bar">
+        <span>schema inference · <b>8 files · 47 columns</b></span>
+        <span class="stage__dots"><i></i><i></i><i></i></span>
+      </div>
+      <div class="stage__body">
+        <div class="schema">
+
+          <div class="cols" id="cols">
+            <div class="cols__h"><span>column</span><span>inferred type</span><span>confidence</span></div>
+            <div class="crow" data-t="text"     data-final="text"><span class="crow__name">customer_id</span><span class="crow__type">…</span><span class="conf"><i></i></span><span class="crow__key">candidate primary key · 100% unique, 0 nulls</span></div>
+            <div class="crow" data-t="date"     data-final="date"><span class="crow__name">order_date</span><span class="crow__type">…</span><span class="conf"><i></i></span></div>
+            <div class="crow" data-t="number"   data-final="number"><span class="crow__name">revenue</span><span class="crow__type">…</span><span class="conf"><i></i></span></div>
+            <div class="crow" data-t="category" data-final="category"><span class="crow__name">region</span><span class="crow__type">…</span><span class="conf"><i></i></span></div>
+            <div class="crow" data-t="number"   data-final="number"><span class="crow__name">discount_pct</span><span class="crow__type">…</span><span class="conf"><i></i></span></div>
+            <div class="crow" data-t="text"     data-final="text"><span class="crow__name">notes</span><span class="crow__type">…</span><span class="conf"><i></i></span></div>
+            <div class="cols__f">showing 6 of 47 columns · sales_q3.csv</div>
+          </div>
+
+          <div class="drift">
+            <div class="dbox">
+              <div class="dbox__h">Same field, different names</div>
+              <div class="variant" id="varGhost" style="opacity:.5"><code style="color:var(--dim)">scanning headers…</code></div>
+              <div class="variant" data-var><code>customer_id</code><span>sales_q3.csv</span></div>
+              <div class="variant" data-var><code>CustomerID</code><span>marketing.csv</span></div>
+              <div class="variant" data-var><code>cust id</code><span>returns.csv</span></div>
+              <div class="merge" id="merge">→ recognised as one field: <b>customer_id</b></div>
+            </div>
+            <div class="dbox">
+              <div class="dbox__h">Schema drift across files</div>
+              <div class="dgrid" id="dgrid">
+                <div class="hd rl">column</div><div class="hd">q1</div><div class="hd">q2</div><div class="hd">q3</div>
+                <div class="rl">customer_id</div><div class="ok">text</div><div class="ok">text</div><div class="ok">text</div>
+                <div class="rl">order_date</div><div class="ok">date</div><div class="bad" data-bad>text</div><div class="ok">date</div>
+                <div class="rl">revenue</div><div class="ok">num</div><div class="ok">num</div><div class="ok">num</div>
+              </div>
+              <div class="driftnote" id="driftnote">order_date is stored as text in q2 — <span class="mono">"12/03/2025"</span> vs an ISO date elsewhere. Data Lens parses both and tells you which files disagreed.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="stage__cap" id="cap"></div>
+    </div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container">
+    <span class="eyebrow">What it does</span>
+    <h2 class="h2" style="max-width:31rem">It reads the values, not the column name.</h2>
+    <div class="grid grid-4" style="margin-top:2.4rem">
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg></div>
+        <h3>Real type inference</h3>
+        <p>Text, number, date, boolean, or category — decided by sampling the actual values, with a confidence score you can see and override.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21l-2 2.5M17 12v3"/></svg></div>
+        <h3>Key detection</h3>
+        <p>Unique and near-unique columns are surfaced as candidate primary keys, with null counts and duplicate examples attached.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M4 6h7M4 12h11M4 18h6"/><path d="M17 15l3 3 3-3"/></svg></div>
+        <h3>Naming variants</h3>
+        <p><span class="mono">cust_id</span>, <span class="mono">CustomerID</span>, and <span class="mono">cust id</span> get recognised as the same field, so joins don't fail on formatting.</p>
+      </div>
+      <div class="card" data-reveal>
+        <div class="ficon"><svg viewBox="0 0 24 24"><path d="M3 5h8v14H3zM13 5h8v14h-8z"/><path d="M11 12h2"/></svg></div>
+        <h3>Schema drift</h3>
+        <p>When the same column has a different type or format in a different file, you find out here — not three steps later when a chart looks wrong.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container detail">
+    <div>
+      <span class="eyebrow">Why it matters</span>
+      <h2 class="h2">Most bad analysis starts with a mistyped column.</h2>
+      <p class="lead">A date read as text won't sort. A number read as text won't average. An ID with hidden duplicates will quietly multiply your row counts on the first join. Schema analysis is the cheapest place to catch all three.</p>
+    </div>
+    <div class="dlist">
+      <div class="dlist__item" data-reveal><span class="dlist__k">01</span><div>
+        <h4>Sample, then confirm</h4><p>Types are inferred from a stratified sample, then verified against the full column. A single stray value doesn't get to decide the type — but it does get reported.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">02</span><div>
+        <h4>Formats, not just types</h4><p>Dates, currencies, percentages, and thousands separators are normalised, so <span class="mono">"₹1,20,000"</span> and <span class="mono">120000</span> end up as the same number.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">03</span><div>
+        <h4>Cardinality matters</h4><p>A number column with eight distinct values is probably a category. Data Lens says so, and treats it accordingly in every chart downstream.</p></div></div>
+      <div class="dlist__item" data-reveal><span class="dlist__k">04</span><div>
+        <h4>You get the final say</h4><p>Every inference is editable. Change a type once and the profiles, charts, and tests that depend on it all recompute.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section--tight">
+  <div class="container">
+    <div class="pn">
+      <a href="directory-analyser.html"><small>Previous · Section 01</small><b>← Directory Analyser</b></a>
+      <a href="column-profiler.html" class="pn--next"><small>Next · Section 03</small><b>Column Profiler →</b></a>
+    </div>
+  </div>
+</section>
+
+<section class="section cta">
+  <div class="cta__glow"></div>
+  <div class="container cta__in">
+    <h2>Find the mistyped column first.</h2>
+    <p class="muted">Everything downstream depends on it.</p>
+    <form class="cta__form" data-waitlist>
+      <input type="email" placeholder="you@company.com" required aria-label="Email address">
+      <button type="submit" class="btn btn-primary">Get early access</button>
+    </form>
+    <p class="cta__note">No spam. One email when it's ready.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container foot">
+    <div>
+      <a class="logo" href="index.html">
+        <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.4" stroke="#e8a94c" stroke-width="1.2"/><circle cx="13" cy="13" r="6.4" stroke="#4fc9d6" stroke-width="1.2"/><circle cx="13" cy="13" r="2" fill="#e8a94c"/></svg>
+        Data Lens
+      </a>
+      <p class="foot__tag">Exploratory data analysis for people who'd rather read the answer than write the query.</p>
+    </div>
+    <div><h5>Sections</h5><ul id="footSections"></ul></div>
+    <div><h5>Product</h5><ul>
+      <li><a href="index.html#how">How it works</a></li>
+      <li><a href="index.html#sections">All sections</a></li>
+      <li><a href="index.html#access">Get early access</a></li>
+    </ul></div>
+  </div>
+</footer>
+
+<script src="assets/gsap.min.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(function(){
+  var $=DL.$, $$=DL.$$;
+  var ghost=$('#varGhost');
+  var rows=$$('.crow'), vars=$$('[data-var]'), merge=$('#merge'),
+      bad=$('[data-bad]'), note=$('#driftnote');
+  var CYCLE=['text','number','date','category','boolean'];
+
+  function lock(row,delay){
+    var typeEl=$('.crow__type',row), bar=$('.conf i',row), key=$('.crow__key',row);
+    var final=row.getAttribute('data-final');
+    var t=gsap.timeline({delay:delay});
+    var n=0;
+    t.to({},{duration:.62,onStart:function(){
+      var iv=setInterval(function(){ typeEl.textContent=CYCLE[n++ % CYCLE.length]; },80);
+      setTimeout(function(){ clearInterval(iv); },600);
+    }});
+    t.call(function(){ typeEl.textContent=final; row.classList.add('is-locked'); });
+    t.to(bar,{width:(88+Math.random()*11).toFixed(0)+'%',duration:.55,ease:'power2.out'},'-=.05');
+    if(key) t.to(key,{opacity:1,duration:.4},'-=.2');
+    return t;
+  }
+
+  DL.stage({
+    root:'#stage', caption:'#cap',
+    still:function(root,setCap){
+      rows.forEach(function(r){
+        r.style.opacity=1; r.classList.add('is-locked');
+        $('.crow__type',r).textContent=r.getAttribute('data-final');
+        $('.conf i',r).style.width='94%';
+        var k=$('.crow__key',r); if(k) k.style.opacity=1;
+      });
+      vars.forEach(function(v){v.style.opacity=1;});
+      ghost.style.display='none';
+      merge.style.opacity=1; bad.style.opacity=1; note.style.opacity=1;
+      setCap('47 columns typed · 1 candidate key · <b>1 drift to resolve</b>');
+    },
+    build:function(tl,setCap){
+      tl.set(ghost,{opacity:.5,display:'flex',height:'auto'})
+        .set(rows,{opacity:0,y:8})
+        .set(vars,{opacity:0,x:-8})
+        .set([merge,note],{opacity:0})
+        .set(bad,{opacity:0})
+        .call(function(){
+          rows.forEach(function(r){
+            r.classList.remove('is-locked');
+            $('.crow__type',r).textContent='…';
+            $('.conf i',r).style.width='0%';
+            var k=$('.crow__key',r); if(k) k.style.opacity=0;
+          });
+        });
+
+      /* 1 — columns appear */
+      tl.call(setCap,['Every column, read value by value.'],.1)
+        .to(rows,{opacity:1,y:0,duration:.35,stagger:.11,ease:'power2.out'},.2);
+
+      /* 2 — types resolve one at a time */
+      tl.call(setCap,['Types get inferred from the data itself, not the header.'],1.4);
+      rows.forEach(function(r,i){ tl.add(lock(r,0),1.5+i*.72); });
+
+      /* 3 — key detection */
+      tl.call(setCap,['Unique columns get flagged as candidate keys.'],5.9);
+
+      /* 4 — naming variants collapse */
+      tl.call(setCap,['The same field, spelled three different ways, is still one field.'],7.2)
+        .to(ghost,{opacity:0,height:0,paddingTop:0,paddingBottom:0,duration:.35},7.2)
+        .to(vars,{opacity:1,x:0,duration:.4,stagger:.3,ease:'power2.out'},7.35)
+        .to(merge,{opacity:1,duration:.5,ease:'power2.out'},8.6);
+
+      /* 5 — drift */
+      tl.call(setCap,['And when one file disagrees with the others, you hear about it.'],9.6)
+        .to(bad,{opacity:1,duration:.45,ease:'power2.out'},9.8)
+        .fromTo(bad,{scale:.85},{scale:1,duration:.45,ease:'back.out(2)'},9.8)
+        .to(note,{opacity:1,duration:.5},10.3);
+
+      tl.call(setCap,['47 columns typed · 1 candidate key · <b>1 drift to resolve</b>'],12.4)
+        .to({},{duration:2.2},12.4);
+    }
+  });
+})();
+</script>
+</body>
+</html>
