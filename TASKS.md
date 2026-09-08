@@ -534,3 +534,56 @@ paths each individually verified against real data (`bank_wide.xlsx`'s
 `pdays` — a real dataset with a 999 sentinel value, correctly surfaced as
 225 outliers and the column's mode) and a purpose-built synthetic fixture
 for the missingness/temporal/masking-effect cases.
+
+## Session 13 — Column Profiler UI pass: real chart variety, interactivity, insights rail
+
+User feedback: every column rendered as a bar chart, charts were too
+large, and nothing was interactive. Also pointed at the marketing page's
+static demo (`column-profiler.html`) — chart card beside a row-per-stat
+summary card — as the layout to actually build. All changes stay in
+`assets/workspaces.js` + `assets/schema.css`, same lazy per-column
+architecture as Session 12.
+
+- [x] **Real chart-type variety**: donut chart for low-cardinality
+      categorical/binary columns (≤6 distinct) instead of a bar — reads
+      far better as proportions. Higher-cardinality categorical/text stays
+      Pareto bar+cumulative-line. Temporal timeline switched from bars to
+      a line chart (reused `lineSvg` from Chart Studio rather than writing
+      a new one) — the correct convention for a time series and visibly
+      distinct from the histogram/Pareto bars elsewhere on the same page.
+- [x] **Real interactivity**: replaced the native, unstyleable `<title>`
+      tooltip with one shared floating tooltip, delegated on `document` so
+      it survives every column re-render — every chart element (histogram
+      bins, box/whisker/outliers, Pareto bars + cumulative dots, donut
+      slices, timeline points) now shows exact figures on hover, styled to
+      match the rest of the app. Added linked hover between a donut's
+      slices and its legend rows (hover either, the matching pair
+      highlights and the rest dim) and a subtle fade-in on cards/insights
+      when switching columns.
+- [x] **Sizing fix**: charts were stretching to the full panel width in a
+      wide overlay, just getting taller for no informational gain. Capped
+      at 480px/200px via a new `.ws-chartarea--cp` class.
+- [x] **Layout**: adopted the marketing page's own `.prof` pattern (chart
+      card beside a compact summary card) — a new `.cp-split` grid pairs
+      Distribution/Value-distribution/Timeline with a `.sa-kv` row-per-stat
+      Summary card carrying the same verdict-tag pills at its bottom,
+      replacing the previous full-width-stacked-cards layout.
+- [x] **Insights side panel** (`.cp-insights`, sticky right rail): explains
+      the selected column in plain language, grounded in the exact numbers
+      already on screen — skew direction and what it implies for mean vs.
+      median, the single worst outlier's row/value, CV-based variability
+      reads, dominant-category/near-unique flags, missingness-block and
+      missingness-dependency callouts, day-of-week concentration for dates.
+      Never a separate fabricated commentary layer — every sentence cites
+      a value the cards above it already computed.
+- [x] **Bug fix, found in passing**: `SchemaEngine.describe()` had no
+      branch for `statistical === 'binary'`, so boolean columns described
+      themselves as "Free text field." — jarringly wrong right above a
+      correctly-rendered true/false donut. Added the missing branch.
+
+Regression: full sweep re-run after every change (all 14 sample files,
+every column, headless Chromium) — 0 console/page errors throughout.
+Visually verified: linked donut hover (slice + legend highlight together,
+rest dim), tooltip content and hover-brighten state, chart-beside-summary
+layout on numeric/categorical/temporal, and the Pareto path still renders
+correctly for a constructed 10-category fixture (donut is capped at 6).

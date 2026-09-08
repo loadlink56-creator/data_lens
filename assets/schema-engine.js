@@ -889,6 +889,8 @@
       bits.push('Date or timestamp field.');
     } else if (p.semantic) {
       bits.push(p.semantic.charAt(0).toUpperCase() + p.semantic.slice(1) + ' value.');
+    } else if (p.statistical === 'binary') {
+      bits.push('Binary field' + (p.topValues.length ? ' — most rows are "' + p.topValues[0][0] + '"' : '') + '.');
     } else if (p.statistical === 'categorical') {
       bits.push('Category with ' + p.distinct + ' distinct values' +
         (p.topValues.length ? ', most often "' + p.topValues[0][0] + '"' : '') + '.');

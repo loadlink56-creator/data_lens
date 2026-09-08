@@ -124,6 +124,18 @@
   transition:width 1s cubic-bezier(.2,.8,.2,1);position:relative}
 .sa-bar em{font-style:normal;text-align:right;color:var(--text);font-weight:500}
 
+/* a compact row-per-stat list — label left, value right — for a summary
+   card sitting in a narrow column beside its chart (a grid would cram) */
+.sa-kv{display:flex;flex-direction:column}
+.sa-kv div{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;
+  padding:.42rem 0;border-bottom:1px solid rgba(var(--fg-rgb),.055);
+  font-family:var(--mono);font-size:.78rem}
+.sa-kv div:last-child{border-bottom:none}
+.sa-kv dt{color:var(--muted)}
+.sa-kv dd{color:var(--text);font-weight:500;text-align:right}
+.sa-kv__tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.9rem;padding-top:.8rem;
+  border-top:1px solid var(--line)}
+
 /* ---------------- stats ---------------- */
 .sa-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem .6rem}
 .sa-stats--tight{grid-template-columns:repeat(3,1fr);margin-top:.9rem}
@@ -481,6 +493,43 @@
   padding:1.4rem;min-height:420px;display:flex;align-items:center;justify-content:center}
 .ws-chartarea svg{width:100%;height:auto;max-height:460px}
 .ws-chartarea--flat{min-height:0;padding:1rem 1.4rem}
+/* the profiler's own charts read better capped — full-bleed-width bars in a
+   wide overlay just get taller and taller for no informational gain */
+.ws-chartarea--cp{min-height:0;max-width:480px;margin:0 auto;padding:1rem 1.2rem}
+.ws-chartarea--cp svg{max-height:200px}
+
+/* floating tooltip — one shared element, positioned at the cursor; charts
+   set the text via [data-tip] on the hovered element rather than the
+   native browser <title> tooltip, which can't be styled or themed */
+.ws-tooltip{position:fixed;z-index:999;pointer-events:none;max-width:220px;
+  background:var(--panel-2);border:1px solid var(--line-2);border-radius:8px;
+  padding:.45rem .65rem;font-family:var(--mono);font-size:.7rem;line-height:1.5;
+  color:var(--text);box-shadow:0 16px 36px -14px rgba(var(--shadow),.85);
+  opacity:0;visibility:hidden;transform:translateY(4px);
+  transition:opacity .12s,transform .12s,visibility .12s}
+.ws-tooltip.is-on{opacity:1;visibility:visible;transform:translateY(0)}
+.ws-tooltip b{color:var(--amber-soft);font-weight:500}
+
+/* donut chart — categorical/binary columns with few enough categories
+   that proportions read better as a donut than a bar */
+.ws-donut{cursor:default}
+.ws-donut path{stroke:var(--panel);stroke-width:1.5;transition:opacity .15s,transform .15s;
+  transform-origin:center;transform-box:fill-box}
+.ws-donut path:hover{opacity:.82;transform:scale(1.03)}
+.ws-donut text{font-family:var(--display);font-weight:600;fill:var(--text)}
+.ws-donut__sub{font-family:var(--mono) !important;font-weight:400 !important;
+  font-size:.62rem !important;fill:var(--dim) !important}
+.ws-donut-legend{display:flex;flex-direction:column;gap:.4rem;margin-top:1rem}
+.ws-donut-legend div{display:flex;align-items:center;gap:.5rem;font-family:var(--mono);
+  font-size:.72rem;color:var(--muted);cursor:default;padding:.15rem .3rem;border-radius:5px;
+  transition:opacity .15s,background .15s}
+.ws-donut-legend i{width:9px;height:9px;border-radius:3px;flex:none;font-style:normal}
+.ws-donut-legend b{color:var(--text);font-weight:500;margin-left:auto}
+/* linked hover — a slice and its legend row highlight together, the rest dim */
+.ws-donut path.is-dim{opacity:.28}
+.ws-donut path.is-focus{transform:scale(1.045)}
+.ws-donut-legend div.is-dim{opacity:.4}
+.ws-donut-legend div.is-focus{background:rgba(var(--fg-rgb),.06)}
 .ws-axis{stroke:var(--line-2);stroke-width:1}
 .ws-axislabel{font-family:var(--mono);font-size:9px;fill:var(--dim)}
 .ws-bar{fill:var(--amber-soft);transition:fill .2s}
@@ -551,4 +600,43 @@
 @media(max-width:900px){
   .ws-split{flex-direction:column}
   .ws-nav{width:100%;max-height:200px;border-right:none;border-bottom:1px solid var(--line)}
+}
+
+/* =====================================================================
+   Column Profiler — main profile beside a persistent insights rail that
+   explains the selected column in plain language as you browse columns.
+   ===================================================================== */
+.cp-layout{display:flex;align-items:flex-start;gap:1.3rem}
+.cp-main{flex:1;min-width:0}
+/* chart beside its own summary stats, the pairing the marketing page
+   always showed — real data just wasn't wired into it until now */
+.cp-split{display:grid;grid-template-columns:1.5fr 1fr;gap:1.2rem;align-items:stretch}
+.cp-split .sa-card{margin:0}
+@media(max-width:860px){.cp-split{grid-template-columns:1fr}}
+@keyframes cpFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.cp-main .sa-card{animation:cpFadeIn .35s cubic-bezier(.2,.8,.2,1) both}
+.cp-main .sa-card:nth-child(2){animation-delay:.03s}
+.cp-main .sa-card:nth-child(3){animation-delay:.06s}
+.cp-main .sa-card:nth-child(4){animation-delay:.09s}
+.cp-insight{animation:cpFadeIn .3s cubic-bezier(.2,.8,.2,1) both}
+.cp-insights{width:290px;flex:none;position:sticky;top:0}
+.cp-insights__h{display:flex;align-items:center;gap:.5rem;font-family:var(--mono);
+  font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:.9rem}
+.cp-insights__h svg{width:14px;height:14px;stroke:var(--amber-soft);fill:none;stroke-width:1.6}
+.cp-insight{display:flex;gap:.6rem;padding:.75rem 0;border-bottom:1px solid var(--line)}
+.cp-insight:last-child{border-bottom:none;padding-bottom:0}
+.cp-insight:first-child{padding-top:0}
+.cp-insight i{flex:none;width:22px;height:22px;border-radius:7px;display:flex;align-items:center;
+  justify-content:center;font-style:normal;margin-top:.05rem}
+.cp-insight i svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+.cp-insight p{font-size:.82rem;line-height:1.55;color:var(--muted)}
+.cp-insight p b{color:var(--text);font-weight:500}
+.cp-insight--good i{background:rgba(110,207,160,.12);color:var(--green)}
+.cp-insight--warn i{background:rgba(232,169,76,.12);color:var(--amber-soft)}
+.cp-insight--bad i{background:rgba(224,138,138,.12);color:var(--rose)}
+.cp-insight--info i{background:rgba(79,201,214,.12);color:var(--cyan-soft)}
+
+@media(max-width:1180px){
+  .cp-layout{flex-direction:column}
+  .cp-insights{width:100%;position:static}
 }
