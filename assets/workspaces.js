@@ -18,6 +18,8 @@
     for (var k in attrs) el.setAttribute(k, attrs[k]);
     return el;
   }
+  /* a small "at a glance" verdict badge — shape, outlier count, completeness… */
+  function vtag(label, color) { return '<span class="sa-vtag sa-vtag--' + color + '"><i></i>' + esc(label) + '</span>'; }
 
   /* pull real values straight from the parsed sheet for a profile */
   function colValues(model, p) {
@@ -35,6 +37,20 @@
     }).filter(function (n) { return isFinite(n); });
   }
 
+  /* same as numericValues, but keeps the originating row number attached —
+     needed so outliers can be shown "with receipts" instead of just counted */
+  function numericRows(model, p) {
+    var sheet = model.sheets[p.sheetIndex];
+    var out = [];
+    for (var r = 0; r < sheet.rows.length; r++) {
+      var v = sheet.rows[r][p.index];
+      if (v == null || String(v).trim() === '') continue;
+      var n = parseFloat(String(v).replace(/[,\s₹$€£¥%]/g, ''));
+      if (isFinite(n)) out.push({ row: r, v: n });
+    }
+    return out;
+  }
+
   function stats(nums) {
     if (!nums.length) return null;
     var a = nums.slice().sort(function (x, y) { return x - y; });
@@ -43,11 +59,169 @@
     var sd = Math.sqrt(variance);
     function pct(p) { var idx = (p / 100) * (n - 1); var lo = Math.floor(idx), hi = Math.ceil(idx); return a[lo] + (a[hi] - a[lo]) * (idx - lo); }
     var skew = sd ? (a.reduce(function (s, v) { return s + Math.pow((v - mean) / sd, 3); }, 0) / n) : 0;
+    /* excess kurtosis (0 = normal-like tails, >0 heavy-tailed, <0 light-tailed) */
+    var kurtosis = sd ? (a.reduce(function (s, v) { return s + Math.pow((v - mean) / sd, 4); }, 0) / n) - 3 : 0;
+    var median = pct(50);
+    /* median absolute deviation — a robust spread measure that outliers can't drag around */
+    var absDevs = a.map(function (v) { return Math.abs(v - median); }).sort(function (x, y) { return x - y; });
+    var mid = Math.floor(n / 2);
+    var mad = n % 2 ? absDevs[mid] : (absDevs[mid - 1] + absDevs[mid]) / 2;
+    /* mode — the most frequent exact value; only meaningful when values repeat */
+    var freq = {}, modeVal = a[0], modeCount = 0;
+    a.forEach(function (v) { freq[v] = (freq[v] || 0) + 1; if (freq[v] > modeCount) { modeCount = freq[v]; modeVal = v; } });
     return {
-      n: n, mean: mean, median: pct(50), sd: sd, variance: variance,
+      n: n, mean: mean, median: median, sd: sd, variance: variance,
       min: a[0], max: a[n - 1], q1: pct(25), q3: pct(75), iqr: pct(75) - pct(25),
-      p5: pct(5), p95: pct(95), skew: skew,
+      p5: pct(5), p95: pct(95), skew: skew, kurtosis: kurtosis, mad: mad,
+      mode: modeVal, modeCount: modeCount, modeMeaningful: modeCount > 1 && modeCount / n >= 0.01,
       cv: mean ? sd / Math.abs(mean) : 0
+    };
+  }
+
+  /* outliers by three rules — IQR fence (1.5x), |z|>3, and the modified
+     z-score (0.6745*(x-median)/MAD, |M|>3.5) — with the actual row +
+     value that triggered each, and which rule(s) fired, as "receipts"
+     rather than just a count. Modified z-score matters on its own: it's
+     robust to the very outliers it's trying to catch (a tight cluster of
+     extreme values inflates mean/sd enough to mask itself from plain
+     z-score — median/MAD don't move nearly as much), so it can flag rows
+     the other two rules miss. */
+  function findOutliers(rows, st) {
+    var lowIQR = st.q1 - 1.5 * st.iqr, highIQR = st.q3 + 1.5 * st.iqr;
+    var all = [];
+    rows.forEach(function (r) {
+      var rules = [];
+      if (r.v < lowIQR || r.v > highIQR) rules.push('IQR');
+      if (st.sd && Math.abs((r.v - st.mean) / st.sd) > 3) rules.push('Z');
+      if (st.mad && Math.abs(0.6745 * (r.v - st.median) / st.mad) > 3.5) rules.push('MAD');
+      if (rules.length) all.push({ row: r.row, v: r.v, rules: rules });
+    });
+    all.sort(function (a, b) { return Math.abs(b.v - st.mean) - Math.abs(a.v - st.mean); });
+    return {
+      all: all,
+      iqr: all.filter(function (r) { return r.rules.indexOf('IQR') >= 0; }),
+      z: all.filter(function (r) { return r.rules.indexOf('Z') >= 0; }),
+      mad: all.filter(function (r) { return r.rules.indexOf('MAD') >= 0; }),
+      lowFence: lowIQR, highFence: highIQR
+    };
+  }
+
+  /* Freedman–Diaconis bin width, so histogram shape isn't an artefact of a fixed bin count */
+  function fdBins(st, n) {
+    if (!st.iqr || n < 2) return 14;
+    var h = 2 * st.iqr / Math.pow(n, 1 / 3);
+    if (!h) return 14;
+    var bins = Math.round((st.max - st.min) / h);
+    return Math.max(6, Math.min(60, bins || 14));
+  }
+
+  function shapeVerdict(st) {
+    var shape;
+    if (st.skew > 1) shape = 'strongly right-skewed';
+    else if (st.skew > 0.5) shape = 'right-skewed';
+    else if (st.skew < -1) shape = 'strongly left-skewed';
+    else if (st.skew < -0.5) shape = 'left-skewed';
+    else shape = 'approximately symmetric';
+    var tail = st.kurtosis > 1 ? ', heavy-tailed' : (st.kurtosis < -1 ? ', light-tailed' : '');
+    return shape + tail;
+  }
+
+  /* Shannon entropy over a full frequency distribution, normalised to
+     [0,1] against the max possible entropy for that many distinct values —
+     a quick read on how "spread out" a categorical column really is */
+  function entropyOf(freqPairs, n) {
+    if (!n || !freqPairs.length) return { bits: 0, normalized: 0 };
+    var h = 0;
+    freqPairs.forEach(function (p) { var pr = p[1] / n; if (pr > 0) h -= pr * Math.log(pr) / Math.LN2; });
+    var maxH = Math.log(freqPairs.length) / Math.LN2;
+    return { bits: h, normalized: maxH ? h / maxH : 0 };
+  }
+
+  /* full frequency distribution — unlike SchemaEngine's profile (which only
+     keeps the top 5 for its own lightweight purposes), the profiler needs
+     the whole distribution for entropy and the Pareto view */
+  function fullFreq(vals) {
+    var f = {}, out = [];
+    vals.forEach(function (v) { var k = String(v); f[k] = (f[k] || 0) + 1; });
+    Object.keys(f).forEach(function (k) { out.push([k, f[k]]); });
+    return out.sort(function (a, b) { return b[1] - a[1]; });
+  }
+
+  /* runs of 3+ consecutive missing rows — a broken export or a dropped
+     page reads very differently from noise scattered evenly through the data */
+  function missingRuns(model, p) {
+    var sheet = model.sheets[p.sheetIndex];
+    var runs = [], start = null;
+    for (var r = 0; r < sheet.rows.length; r++) {
+      var v = sheet.rows[r][p.index];
+      var blank = (v == null || String(v).trim() === '');
+      if (blank) { if (start === null) start = r; }
+      else if (start !== null) { runs.push([start, r - 1]); start = null; }
+    }
+    if (start !== null) runs.push([start, sheet.rows.length - 1]);
+    return runs.filter(function (r) { return r[1] - r[0] + 1 >= 3; })
+      .sort(function (a, b) { return (b[1] - b[0]) - (a[1] - a[0]); });
+  }
+
+  /* character-class and word-count profile for free text — sampled, since
+     scanning every character of a huge text column is the one loop here
+     that's actually expensive per row */
+  function textCharStats(vals) {
+    var s = sampleForPerf(vals, 5000);
+    var totalChars = 0, alpha = 0, digit = 0, space = 0, special = 0, words = 0, wsEdges = 0;
+    s.data.forEach(function (v) {
+      var str = String(v);
+      totalChars += str.length;
+      var trimmed = str.trim();
+      words += trimmed === '' ? 0 : trimmed.split(/\s+/).length;
+      if (str !== trimmed) wsEdges++;
+      for (var i = 0; i < str.length; i++) {
+        var c = str[i];
+        if (/[a-zA-Z]/.test(c)) alpha++;
+        else if (/[0-9]/.test(c)) digit++;
+        else if (/\s/.test(c)) space++;
+        else special++;
+      }
+    });
+    var n = s.data.length || 1;
+    return {
+      sampled: s.sampled, sampleN: s.data.length, totalN: s.total,
+      avgWords: round(words / n, 2),
+      alphaRatio: totalChars ? alpha / totalChars : 0,
+      digitRatio: totalChars ? digit / totalChars : 0,
+      spaceRatio: totalChars ? space / totalChars : 0,
+      specialRatio: totalChars ? special / totalChars : 0,
+      leadTrailWS: wsEdges
+    };
+  }
+
+  function parseDateSafe(s) {
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  /* date range, seasonality (day-of-week / month), and whether the column
+     is already sorted in the sheet — a strong tell for a log or time index */
+  function temporalStats(vals) {
+    var s = sampleForPerf(vals, PROFILE_CAP);
+    var parsed = s.data.map(parseDateSafe);
+    var valid = parsed.filter(function (d) { return d; });
+    if (!valid.length) return null;
+    var monotonic = true, prev = null;
+    parsed.forEach(function (d) { if (!d) return; if (prev && d < prev) monotonic = false; prev = d; });
+    var sorted = valid.slice().sort(function (a, b) { return a - b; });
+    var dow = [0, 0, 0, 0, 0, 0, 0];
+    valid.forEach(function (d) { dow[d.getDay()]++; });
+    var byMonth = {};
+    valid.forEach(function (d) {
+      var k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      byMonth[k] = (byMonth[k] || 0) + 1;
+    });
+    var months = Object.keys(byMonth).sort();
+    return {
+      min: sorted[0], max: sorted[sorted.length - 1], n: valid.length,
+      dow: dow, monotonic: monotonic,
+      monthly: months.map(function (k) { return [k, byMonth[k]]; })
     };
   }
 
@@ -76,6 +250,18 @@
     var a = Math.abs(r);
     if (r >= 0) return 'rgba(232,169,76,' + (0.15 + a * 0.75) + ')';
     return 'rgba(79,201,214,' + (0.15 + a * 0.75) + ')';
+  }
+
+  /* an evenly-strided sample, so a 300k-row column still profiles in
+     one frame — every stat that touches raw values goes through this
+     rather than each inventing its own cap */
+  var PROFILE_CAP = 50000;
+  function sampleForPerf(arr, cap) {
+    cap = cap || PROFILE_CAP;
+    if (arr.length <= cap) return { data: arr, sampled: false, total: arr.length };
+    var step = arr.length / cap, out = [];
+    for (var i = 0; i < cap; i++) out.push(arr[Math.floor(i * step)]);
+    return { data: out, sampled: true, total: arr.length };
   }
 
   /* =================================================================
@@ -111,7 +297,10 @@
     selectColumn(0);
   };
 
-  function histogramSvg(nums, bins) {
+  /* standard normal kernel, used only by the KDE overlay below */
+  function gaussianKernel(u) { return Math.exp(-0.5 * u * u) / Math.sqrt(2 * Math.PI); }
+
+  function histogramSvg(nums, bins, kde) {
     bins = bins || 14;
     var min = Math.min.apply(null, nums), max = Math.max.apply(null, nums);
     if (min === max) max = min + 1;
@@ -133,6 +322,29 @@
       bar.appendChild(t);
       s.appendChild(bar);
     });
+
+    /* KDE overlay — a smoothed density curve sharing this histogram's own
+       coordinate mapping (scaled to the tallest bar's pixel height, not a
+       second chart with its own axis), bandwidth via Silverman's rule */
+    if (kde && kde.sd && kde.iqr && nums.length > 4) {
+      var n = nums.length;
+      var bw2 = 0.9 * Math.min(kde.sd, kde.iqr / 1.34) * Math.pow(n, -0.2);
+      if (bw2 > 0) {
+        var STEPS = 80, dens = [];
+        for (var i = 0; i <= STEPS; i++) {
+          var x = min + (i / STEPS) * (max - min), sum = 0;
+          for (var j = 0; j < n; j++) sum += gaussianKernel((x - nums[j]) / bw2);
+          dens.push(sum / (n * bw2));
+        }
+        var maxD = Math.max.apply(null, dens) || 1;
+        var d = dens.map(function (v, k) {
+          var x = pad + (k / STEPS) * (W - pad * 2), y = H - (v / maxD) * H;
+          return (k === 0 ? 'M' : 'L') + x + ' ' + y;
+        }).join(' ');
+        s.appendChild(svg('path', { class: 'ws-line', d: d }));
+      }
+    }
+
     [min, (min + max) / 2, max].forEach(function (v, i) {
       var t = svg('text', { class: 'ws-axislabel', x: i === 0 ? pad : (i === 1 ? W / 2 : W - pad), y: H + 16, 'text-anchor': i === 0 ? 'start' : (i === 1 ? 'middle' : 'end') });
       t.textContent = round(v, 1);
@@ -160,6 +372,58 @@
     return s.outerHTML;
   }
 
+  /* box-and-whisker plot with outlier dots beyond the 1.5x IQR fence */
+  function boxPlotSvg(st, outlierVals) {
+    var W = 560, H = 90, pad = 34;
+    var lo = Math.min(st.min, outlierVals.length ? Math.min.apply(null, outlierVals) : st.min);
+    var hi = Math.max(st.max, outlierVals.length ? Math.max.apply(null, outlierVals) : st.max);
+    if (lo === hi) hi = lo + 1;
+    var x = function (v) { return pad + ((v - lo) / (hi - lo)) * (W - pad * 2); };
+    var midY = H / 2;
+    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + (H + 24), width: '100%' });
+    var whiskerLo = Math.max(st.min, st.q1 - 1.5 * st.iqr);
+    var whiskerHi = Math.min(st.max, st.q3 + 1.5 * st.iqr);
+    s.appendChild(svg('line', { class: 'ws-whisker', x1: x(whiskerLo), y1: midY, x2: x(st.q1), y2: midY }));
+    s.appendChild(svg('line', { class: 'ws-whisker', x1: x(st.q3), y1: midY, x2: x(whiskerHi), y2: midY }));
+    s.appendChild(svg('line', { class: 'ws-whisker', x1: x(whiskerLo), y1: midY - 9, x2: x(whiskerLo), y2: midY + 9 }));
+    s.appendChild(svg('line', { class: 'ws-whisker', x1: x(whiskerHi), y1: midY - 9, x2: x(whiskerHi), y2: midY + 9 }));
+    s.appendChild(svg('rect', { class: 'ws-box', x: x(st.q1), y: midY - 17, width: Math.max(1, x(st.q3) - x(st.q1)), height: 34, rx: 3 }));
+    s.appendChild(svg('line', { class: 'ws-median', x1: x(st.median), y1: midY - 17, x2: x(st.median), y2: midY + 17 }));
+    outlierVals.slice(0, 80).forEach(function (v) {
+      s.appendChild(svg('circle', { class: 'ws-outlier', cx: x(v), cy: midY, r: 4 }));
+    });
+    [lo, (lo + hi) / 2, hi].forEach(function (v, i) {
+      var t = svg('text', { class: 'ws-axislabel', x: i === 0 ? pad : (i === 1 ? W / 2 : W - pad), y: H + 16, 'text-anchor': i === 0 ? 'start' : (i === 1 ? 'middle' : 'end') });
+      t.textContent = round(v, 1);
+      s.appendChild(t);
+    });
+    return s.outerHTML;
+  }
+
+  /* Pareto chart — bars for each category plus a cumulative-% line, so an
+     80/20 concentration (or its absence) is visible at a glance */
+  function paretoSvg(pairs, totalN) {
+    var W = 560, H = 190, pad = 4, gap = 6;
+    var maxV = Math.max.apply(null, pairs.map(function (p) { return p[1]; })) || 1;
+    var bw = (W - pad * 2) / pairs.length - gap;
+    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + (H + 30), width: '100%' });
+    var cum = 0, pts = [];
+    pairs.forEach(function (p, i) {
+      var h = (p[1] / maxV) * H;
+      var x = pad + i * (bw + gap);
+      s.appendChild(svg('rect', { class: 'ws-bar', x: x, y: H - h, width: bw, height: h, rx: 2 }));
+      var lab = svg('text', { class: 'ws-axislabel', x: x + bw / 2, y: H + 16, 'text-anchor': 'middle' });
+      lab.textContent = String(p[0]).slice(0, 10);
+      s.appendChild(lab);
+      cum += p[1];
+      pts.push([x + bw / 2, H - (cum / totalN) * H]);
+    });
+    var d = pts.map(function (pt, i) { return (i === 0 ? 'M' : 'L') + pt[0] + ' ' + pt[1]; }).join(' ');
+    s.appendChild(svg('path', { class: 'ws-line', d: d }));
+    pts.forEach(function (pt) { s.appendChild(svg('circle', { class: 'ws-dot', cx: pt[0], cy: pt[1], r: 2.6 })); });
+    return s.outerHTML;
+  }
+
   function selectColumn(idx) {
     cpState.current = idx;
     $$('.ws-navitem', $('#cpNav')).forEach(function (b, i) { b.classList.toggle('is-active', i === idx); });
@@ -167,34 +431,139 @@
     var model = cpState.model;
     var body = $('#cpBody');
 
-    var chart = '';
-    if (p.physical === 'integer' || p.physical === 'float') {
-      var nums = numericValues(model, p);
-      var st = stats(nums);
-      if (st) {
-        chart = '<div class="sa-card"><div class="sa-card__h">Distribution <span class="sa-hint">' + num(st.n) + ' values</span></div>' +
-          '<div class="ws-chartarea" style="min-height:220px">' + histogramSvg(nums) + '</div></div>' +
-          '<div class="sa-card"><div class="sa-card__h">Numeric summary</div><div class="sa-stats">' +
-          [['Mean', round(st.mean)], ['Median', round(st.median)], ['Std dev', round(st.sd)], ['CV', round(st.cv, 3)],
-           ['Min', round(st.min)], ['Max', round(st.max)], ['Q1', round(st.q1)], ['Q3', round(st.q3)],
-           ['IQR', round(st.iqr)], ['P5', round(st.p5)], ['P95', round(st.p95)], ['Skewness', round(st.skew, 3)]]
-          .map(function (kv) { return '<div><dt>' + kv[0] + '</dt><dd>' + kv[1] + '</dd></div>'; }).join('') + '</div></div>';
-      }
-    } else if (p.topValues.length) {
-      chart = '<div class="sa-card"><div class="sa-card__h">Top values</div>' +
-        '<div class="ws-chartarea" style="min-height:220px">' + barChartSvg(p.topValues.slice(0, 8)) + '</div></div>';
-    }
+    var kind = 'other';
+    if (p.physical === 'integer' || p.physical === 'float') kind = 'numeric';
+    else if (p.statistical === 'temporal') kind = 'temporal';
+    else if (p.statistical === 'categorical' || p.statistical === 'binary') kind = 'categorical';
+    else if (p.statistical === 'text') kind = 'text';
 
     var vals = colValues(model, p);
-    var textStats = '';
+    var verdicts = [];
+    var cards = '';
+
+    if (kind === 'numeric') {
+      var rowsAll = numericRows(model, p);
+      var sampleR = sampleForPerf(rowsAll);
+      var nums = sampleR.data.map(function (r) { return r.v; });
+      var st = stats(nums);
+      if (st) {
+        var out = findOutliers(sampleR.data, st);
+        var bins = fdBins(st, nums.length);
+
+        verdicts.push(vtag(shapeVerdict(st), Math.abs(st.skew) > 0.5 ? 'amber' : 'green'));
+        verdicts.push(vtag(out.all.length + ' outlier' + (out.all.length === 1 ? '' : 's'), out.all.length ? 'rose' : 'green'));
+        verdicts.push(vtag(pc(1 - p.nullRatio) + ' complete', p.nullRatio > 0.05 ? 'amber' : 'green'));
+
+        cards += '<div class="sa-card"><div class="sa-card__h">Distribution <span class="sa-hint">' +
+          num(st.n) + (sampleR.sampled ? ' of ' + num(sampleR.total) + ' values — sampled for speed' : ' values') + ' · line = density estimate</span></div>' +
+          '<div class="ws-chartarea" style="min-height:220px">' + histogramSvg(nums, bins, { sd: st.sd, iqr: st.iqr }) + '</div>' +
+          '<div class="ws-chartarea ws-chartarea--flat" style="margin-top:.8rem">' + boxPlotSvg(st, out.all.map(function (r) { return r.v; })) + '</div></div>';
+
+        cards += '<div class="sa-card"><div class="sa-card__h">Numeric summary</div><div class="sa-stats">' +
+          [['Mean', round(st.mean)], ['Median', round(st.median)],
+           ['Mode', st.modeMeaningful ? round(st.mode) + ' (×' + st.modeCount + ')' : '—'],
+           ['Std dev', round(st.sd)], ['MAD', round(st.mad)], ['CV', round(st.cv, 3)],
+           ['Min', round(st.min)], ['Max', round(st.max)], ['Q1', round(st.q1)], ['Q3', round(st.q3)],
+           ['IQR', round(st.iqr)], ['P5', round(st.p5)], ['P95', round(st.p95)],
+           ['Skewness', round(st.skew, 3)], ['Kurtosis (excess)', round(st.kurtosis, 3)]]
+          .map(function (kv) { return '<div><dt>' + kv[0] + '</dt><dd>' + kv[1] + '</dd></div>'; }).join('') + '</div></div>';
+
+        if (out.all.length) {
+          cards += '<div class="sa-card"><div class="sa-card__h">Outliers <span class="sa-hint">' +
+            out.all.length + ' flagged by IQR (' + out.iqr.length + '), z-score (' + out.z.length +
+            '), or modified z-score/MAD (' + out.mad.length + ')</span></div><ul class="sa-list">' +
+            out.all.slice(0, 12).map(function (r) {
+              var z = st.sd ? round((r.v - st.mean) / st.sd, 2) : 0;
+              return '<li><b>Row ' + (r.row + 2) + '</b><s>value ' + round(r.v) + ' — z = ' + z +
+                (r.v < out.lowFence ? ', below the low fence (' + round(out.lowFence) + ')' : ', above the high fence (' + round(out.highFence) + ')') +
+                ' — caught by ' + r.rules.join(' + ') + '</s></li>';
+            }).join('') + '</ul>' +
+            (out.all.length > 12 ? '<p class="sa-note">+ ' + (out.all.length - 12) + ' more.</p>' : '') + '</div>';
+        }
+      }
+    } else if (kind === 'temporal') {
+      var tst = temporalStats(vals);
+      if (tst) {
+        var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        verdicts.push(vtag(tst.monotonic ? 'sorted ascending' : 'not sorted', tst.monotonic ? 'cyan' : 'amber'));
+        verdicts.push(vtag(pc(1 - p.nullRatio) + ' complete', p.nullRatio > 0.05 ? 'amber' : 'green'));
+
+        cards += '<div class="sa-card"><div class="sa-card__h">Date range</div><div class="sa-stats sa-stats--tight">' +
+          [['Earliest', tst.min.toLocaleDateString()], ['Latest', tst.max.toLocaleDateString()],
+           ['Span (days)', num(Math.round((tst.max - tst.min) / 86400000))]]
+          .map(function (kv) { return '<div><dt>' + kv[0] + '</dt><dd style="font-size:.92rem">' + kv[1] + '</dd></div>'; }).join('') + '</div></div>';
+
+        if (tst.monthly.length > 1) {
+          cards += '<div class="sa-card"><div class="sa-card__h">Timeline <span class="sa-hint">by month</span></div>' +
+            '<div class="ws-chartarea" style="min-height:200px">' + barChartSvg(tst.monthly.slice(-24)) + '</div></div>';
+        }
+        cards += '<div class="sa-card"><div class="sa-card__h">Day-of-week distribution</div>' +
+          '<div class="ws-chartarea" style="min-height:200px">' + barChartSvg(tst.dow.map(function (c, i) { return [DOW[i], c]; })) + '</div></div>';
+      }
+    } else if (kind === 'categorical' || kind === 'text') {
+      var freq = fullFreq(vals);
+      var ent = entropyOf(freq, vals.length);
+      var diversity = ent.normalized > 0.7 ? 'high' : (ent.normalized < 0.3 ? 'low' : 'moderate');
+      verdicts.push(vtag(num(p.distinct) + ' distinct', 'cyan'));
+      verdicts.push(vtag(diversity + ' diversity', 'cyan'));
+      verdicts.push(vtag(pc(1 - p.nullRatio) + ' complete', p.nullRatio > 0.05 ? 'amber' : 'green'));
+
+      cards += '<div class="sa-card"><div class="sa-card__h">' + (kind === 'categorical' ? 'Value distribution' : 'Top values') +
+        ' <span class="sa-hint">' + (kind === 'categorical' ? 'bars = count, line = cumulative %' : 'most frequent') + '</span></div>' +
+        '<div class="ws-chartarea" style="min-height:220px">' +
+        (kind === 'categorical' ? paretoSvg(freq.slice(0, 14), vals.length) : barChartSvg(freq.slice(0, 8))) + '</div></div>';
+
+      cards += '<div class="sa-card"><div class="sa-card__h">Diversity</div><div class="sa-stats sa-stats--tight">' +
+        [['Distinct', num(p.distinct)], ['Entropy (bits)', round(ent.bits, 2)], ['Normalized (0–1)', round(ent.normalized, 2)]]
+        .map(function (kv) { return '<div><dt>' + kv[0] + '</dt><dd>' + kv[1] + '</dd></div>'; }).join('') + '</div></div>';
+
+      if (freq.length > 8) {
+        cards += '<div class="sa-card"><div class="sa-card__h">Full frequency table <span class="sa-hint">' + freq.length + ' distinct values</span></div>' +
+          '<div class="sa-tablewrap"><table class="sa-table"><thead><tr><th>Value</th><th>Count</th><th>%</th></tr></thead><tbody>' +
+          freq.slice(0, 100).map(function (f) {
+            return '<tr><td><b>' + esc(f[0]) + '</b></td><td>' + num(f[1]) + '</td><td>' + pc(f[1] / vals.length) + '</td></tr>';
+          }).join('') + '</tbody></table></div>' +
+          (freq.length > 100 ? '<p class="sa-note">+ ' + num(freq.length - 100) + ' more distinct values.</p>' : '') + '</div>';
+      }
+    }
+
     if (p.physical === 'string') {
       var lens = vals.map(function (v) { return String(v).length; });
       var lst = stats(lens);
+      var cst = textCharStats(vals);
       if (lst) {
-        textStats = '<div class="sa-card"><div class="sa-card__h">Text length</div><div class="sa-stats">' +
-          [['Min', lst.min], ['Max', lst.max], ['Mean', round(lst.mean, 1)], ['Median', round(lst.median, 1)]]
-          .map(function (kv) { return '<div><dt>' + kv[0] + '</dt><dd>' + kv[1] + '</dd></div>'; }).join('') + '</div></div>';
+        cards += '<div class="sa-card"><div class="sa-card__h">Text profile' +
+          (cst.sampled ? ' <span class="sa-hint">character stats sampled from ' + num(cst.sampleN) + ' of ' + num(cst.totalN) + '</span>' : '') +
+          '</div><div class="sa-stats">' +
+          [['Length min', lst.min], ['Length max', lst.max], ['Length mean', round(lst.mean, 1)], ['Length median', round(lst.median, 1)],
+           ['Avg words', cst.avgWords], ['Alpha', pc(cst.alphaRatio)], ['Digit', pc(cst.digitRatio)], ['Special', pc(cst.specialRatio)]]
+          .map(function (kv) { return '<div><dt>' + kv[0] + '</dt><dd>' + kv[1] + '</dd></div>'; }).join('') + '</div>' +
+          (cst.leadTrailWS ? '<div class="sa-warn" style="margin-top:.8rem">' + num(cst.leadTrailWS) + ' sampled value(s) have leading or trailing whitespace.</div>' : '') +
+          '</div>';
       }
+    }
+
+    /* missingness structure — where the blanks fall, not just how many */
+    if (p.nullCount > 0) {
+      var runs = missingRuns(model, p);
+      var sheet = model.sheets[p.sheetIndex];
+      var totalRows = sheet.rows.length || 1;
+      var runHtml = runs.slice(0, 5).map(function (r) {
+        return '<i style="left:' + pc(r[0] / totalRows) + ';width:' + pc(Math.max(0.003, (r[1] - r[0] + 1) / totalRows)) + '"></i>';
+      }).join('');
+      var dep = (p.nullRatio >= 0.05 && p.nullRatio <= 0.95)
+        ? SchemaEngine.missingnessDependency(sheet, cpState.report.profiles[p.sheetIndex], p.index) : null;
+
+      cards += '<div class="sa-card"><div class="sa-card__h">Missingness <span class="sa-hint">' +
+        num(p.nullCount) + ' missing (' + pc(p.nullRatio) + ')</span></div>' +
+        (runs.length
+          ? '<p class="sa-note">' + runs.length + ' block' + (runs.length === 1 ? '' : 's') + ' of 3+ consecutive missing rows — largest is rows ' +
+            (runs[0][0] + 2) + '–' + (runs[0][1] + 2) + ' (' + num(runs[0][1] - runs[0][0] + 1) + ' rows). Reads like a broken export or an unfilled section, not random noise.</p>'
+          : '<p class="sa-note">Missing values look scattered rather than blocked — consistent with random noise.</p>') +
+        '<div class="ws-missmap">' + runHtml + '</div>' +
+        (dep ? '<div class="sa-warn" style="margin-top:.8rem">Missing ' + pc(dep.rate) + ' of the time when <b>' +
+          esc(dep.column) + '</b> = "' + esc(dep.value) + '" (n=' + num(dep.n) + ') — not missing at random.</div>' : '') +
+        '</div>';
     }
 
     body.innerHTML =
@@ -214,7 +583,8 @@
       '</div>' +
       (p.mismatch ? '<div class="sa-warn">Convertible to <b>' + p.mismatch.detected + '</b> (' + pc(p.mismatch.ratio) + ' of values).</div>' : '') +
       (p.pii ? '<div class="sa-warn sa-warn--red">Potential PII: ' + p.pii + '.</div>' : '') +
-      '</div>' + chart + textStats;
+      '<div class="sa-verdicts">' + verdicts.join('') + '</div>' +
+      '</div>' + cards;
   }
 
   /* =================================================================

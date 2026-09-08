@@ -480,12 +480,34 @@
 .ws-chartarea{background:var(--panel);border:1px solid var(--line);border-radius:14px;
   padding:1.4rem;min-height:420px;display:flex;align-items:center;justify-content:center}
 .ws-chartarea svg{width:100%;height:auto;max-height:460px}
+.ws-chartarea--flat{min-height:0;padding:1rem 1.4rem}
 .ws-axis{stroke:var(--line-2);stroke-width:1}
 .ws-axislabel{font-family:var(--mono);font-size:9px;fill:var(--dim)}
 .ws-bar{fill:var(--amber-soft);transition:fill .2s}
 .ws-bar:hover{fill:var(--amber)}
 .ws-dot{fill:var(--cyan-soft);opacity:.8}
 .ws-line{fill:none;stroke:var(--cyan);stroke-width:2}
+
+/* box plot (column profiler — numeric distribution) */
+.ws-box{fill:rgba(79,201,214,.16);stroke:var(--cyan);stroke-width:1.4}
+.ws-whisker{stroke:var(--muted);stroke-width:1.2}
+.ws-median{stroke:var(--cyan);stroke-width:2.2}
+.ws-outlier{fill:none;stroke:var(--amber-soft);stroke-width:1.4}
+
+/* verdict tags — shape / outliers / completeness / diversity, at a glance */
+.sa-verdicts{display:flex;flex-wrap:wrap;gap:.4rem;margin:.9rem 0 0}
+.sa-vtag{font-family:var(--mono);font-size:.68rem;border-radius:999px;padding:.24rem .65rem;
+  border:1px solid var(--line-2);color:var(--muted);display:inline-flex;align-items:center;gap:.35rem}
+.sa-vtag i{width:6px;height:6px;border-radius:50%;background:currentColor;font-style:normal;flex:none}
+.sa-vtag--amber{color:var(--amber-soft);border-color:rgba(232,169,76,.4)}
+.sa-vtag--rose{color:var(--rose);border-color:rgba(224,138,138,.4)}
+.sa-vtag--green{color:var(--green);border-color:rgba(110,207,160,.4)}
+.sa-vtag--cyan{color:var(--cyan-soft);border-color:rgba(79,201,214,.4)}
+
+/* missingness map — where the blanks fall across the row range */
+.ws-missmap{position:relative;height:10px;border-radius:5px;
+  background:rgba(var(--fg-rgb),.07);overflow:hidden;margin-top:.6rem}
+.ws-missmap i{position:absolute;top:0;bottom:0;background:var(--rose);opacity:.7;font-style:normal}
 
 /* report builder */
 .ws-outline-item{display:flex;align-items:center;gap:.55rem;padding:.5rem .6rem;border-radius:8px;
