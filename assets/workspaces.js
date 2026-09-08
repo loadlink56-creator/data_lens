@@ -329,23 +329,38 @@
   /* standard normal kernel, used only by the KDE overlay below */
   function gaussianKernel(u) { return Math.exp(-0.5 * u * u) / Math.sqrt(2 * Math.PI); }
 
+  /* shared y-axis gridlines + tick labels — 0 / half / max of whatever
+     count scale a chart is using, drawn behind the marks */
+  function yAxis(s, padL, padR, top, bottom, maxV, W) {
+    [0, .5, 1].forEach(function (f) {
+      var y = bottom - f * (bottom - top);
+      s.appendChild(svg('line', { class: 'ws-axis', x1: padL, y1: y, x2: W - padR, y2: y }));
+      var t = svg('text', { class: 'ws-axislabel', x: padL - 8, y: y + 3.5, 'text-anchor': 'end' });
+      t.textContent = num(Math.round(f * maxV));
+      s.appendChild(t);
+    });
+  }
+
   function histogramSvg(nums, bins, kde) {
     bins = bins || 14;
     var min = Math.min.apply(null, nums), max = Math.max.apply(null, nums);
     if (min === max) max = min + 1;
-    var width = bins, counts = new Array(bins).fill(0);
+    var counts = new Array(bins).fill(0);
     nums.forEach(function (v) {
       var b = Math.min(bins - 1, Math.floor(((v - min) / (max - min)) * bins));
       counts[b]++;
     });
     var maxC = Math.max.apply(null, counts) || 1;
-    var W = 560, H = 160, pad = 4, bw = (W - pad * 2) / bins;
-    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + (H + 26), width: '100%' });
+    var W = 560, H = 210, padL = 44, padR = 14, top = 14, bottom = H - 26, plotH = bottom - top;
+    var bw = (W - padL - padR) / bins;
+    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, width: '100%' });
+    yAxis(s, padL, padR, top, bottom, maxC, W);
+
     counts.forEach(function (c, i) {
-      var h = (c / maxC) * H;
+      var h = (c / maxC) * plotH;
       var lo2 = round(min + (i / bins) * (max - min), 1), hi2 = round(min + ((i + 1) / bins) * (max - min), 1);
       s.appendChild(svg('rect', {
-        class: 'ws-bar', x: pad + i * bw + 1, y: H - h, width: Math.max(1, bw - 2), height: h, rx: 2,
+        class: 'ws-bar', x: padL + i * bw + 1, y: bottom - h, width: Math.max(1, bw - 2), height: h, rx: 2,
         'data-tip': '<b>' + lo2 + '–' + hi2 + '</b><br>' + num(c) + ' value' + (c === 1 ? '' : 's')
       }));
     });
@@ -365,7 +380,7 @@
         }
         var maxD = Math.max.apply(null, dens) || 1;
         var d = dens.map(function (v, k) {
-          var x = pad + (k / STEPS) * (W - pad * 2), y = H - (v / maxD) * H;
+          var x = padL + (k / STEPS) * (W - padL - padR), y = bottom - (v / maxD) * plotH;
           return (k === 0 ? 'M' : 'L') + x + ' ' + y;
         }).join(' ');
         s.appendChild(svg('path', { class: 'ws-line', d: d }));
@@ -373,7 +388,7 @@
     }
 
     [min, (min + max) / 2, max].forEach(function (v, i) {
-      var t = svg('text', { class: 'ws-axislabel', x: i === 0 ? pad : (i === 1 ? W / 2 : W - pad), y: H + 16, 'text-anchor': i === 0 ? 'start' : (i === 1 ? 'middle' : 'end') });
+      var t = svg('text', { class: 'ws-axislabel', x: i === 0 ? padL : (i === 1 ? W / 2 : W - padR), y: bottom + 18, 'text-anchor': i === 0 ? 'start' : (i === 1 ? 'middle' : 'end') });
       t.textContent = round(v, 1);
       s.appendChild(t);
     });
@@ -381,23 +396,21 @@
   }
 
   function barChartSvg(pairs) {
-    var W = 560, H = 190, pad = 4, gap = 6;
+    var W = 560, H = 210, padL = 44, padR = 14, gap = 6, top = 14, bottom = H - 26, plotH = bottom - top;
     var maxV = Math.max.apply(null, pairs.map(function (p) { return p[1]; })) || 1;
-    var bw = (W - pad * 2) / pairs.length - gap;
-    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + (H + 30), width: '100%' });
+    var bw = (W - padL - padR) / pairs.length - gap;
+    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, width: '100%' });
+    yAxis(s, padL, padR, top, bottom, maxV, W);
     pairs.forEach(function (p, i) {
-      var h = (p[1] / maxV) * H;
-      var x = pad + i * (bw + gap);
+      var h = (p[1] / maxV) * plotH;
+      var x = padL + i * (bw + gap);
       s.appendChild(svg('rect', {
-        class: 'ws-bar', x: x, y: H - h, width: bw, height: h, rx: 2,
+        class: 'ws-bar', x: x, y: bottom - h, width: bw, height: h, rx: 2,
         'data-tip': '<b>' + esc(String(p[0])) + '</b><br>' + num(p[1])
       }));
-      var lab = svg('text', { class: 'ws-axislabel', x: x + bw / 2, y: H + 16, 'text-anchor': 'middle' });
+      var lab = svg('text', { class: 'ws-axislabel', x: x + bw / 2, y: bottom + 18, 'text-anchor': 'middle' });
       lab.textContent = String(p[0]).slice(0, 10);
       s.appendChild(lab);
-      var val = svg('text', { class: 'ws-axislabel', x: x + bw / 2, y: H - h - 4, 'text-anchor': 'middle', fill: 'var(--text)' });
-      val.textContent = num(p[1]);
-      s.appendChild(val);
     });
     return s.outerHTML;
   }
@@ -439,23 +452,24 @@
   /* Pareto chart — bars for each category plus a cumulative-% line, so an
      80/20 concentration (or its absence) is visible at a glance */
   function paretoSvg(pairs, totalN) {
-    var W = 560, H = 190, pad = 4, gap = 6;
+    var W = 560, H = 210, padL = 44, padR = 14, gap = 6, top = 14, bottom = H - 26, plotH = bottom - top;
     var maxV = Math.max.apply(null, pairs.map(function (p) { return p[1]; })) || 1;
-    var bw = (W - pad * 2) / pairs.length - gap;
-    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + (H + 30), width: '100%' });
+    var bw = (W - padL - padR) / pairs.length - gap;
+    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, width: '100%' });
+    yAxis(s, padL, padR, top, bottom, maxV, W);
     var cum = 0, pts = [];
     pairs.forEach(function (p, i) {
-      var h = (p[1] / maxV) * H;
-      var x = pad + i * (bw + gap);
+      var h = (p[1] / maxV) * plotH;
+      var x = padL + i * (bw + gap);
       s.appendChild(svg('rect', {
-        class: 'ws-bar', x: x, y: H - h, width: bw, height: h, rx: 2,
+        class: 'ws-bar', x: x, y: bottom - h, width: bw, height: h, rx: 2,
         'data-tip': '<b>' + esc(String(p[0])) + '</b><br>' + num(p[1]) + ' (' + pc(p[1] / totalN) + ')'
       }));
-      var lab = svg('text', { class: 'ws-axislabel', x: x + bw / 2, y: H + 16, 'text-anchor': 'middle' });
+      var lab = svg('text', { class: 'ws-axislabel', x: x + bw / 2, y: bottom + 18, 'text-anchor': 'middle' });
       lab.textContent = String(p[0]).slice(0, 10);
       s.appendChild(lab);
       cum += p[1];
-      pts.push([x + bw / 2, H - (cum / totalN) * H, cum]);
+      pts.push([x + bw / 2, bottom - (cum / totalN) * plotH, cum]);
     });
     var d = pts.map(function (pt, i) { return (i === 0 ? 'M' : 'L') + pt[0] + ' ' + pt[1]; }).join(' ');
     s.appendChild(svg('path', { class: 'ws-line', d: d }));
@@ -544,13 +558,39 @@
     return '<div class="cp-insight cp-insight--' + tone + '"><i><svg viewBox="0 0 24 24">' + INSIGHT_ICONS[tone] + '</svg></i><p>' + html + '</p></div>';
   }
 
+  /* four plain-language tabs — Descriptive Stats / Distribution Shape /
+     Missing Values / Outliers — mirroring the categories the marketing
+     page always showed as static chips. Delegated once so tab clicks
+     just toggle visibility instead of re-rendering the whole profile. */
+  var TAB_LABEL = { stats: 'Descriptive Stats', shape: 'Distribution Shape', missing: 'Missing Values', outliers: 'Outliers' };
+  var tabsInit = false;
+  function ensureTabs() {
+    if (tabsInit) return;
+    tabsInit = true;
+    document.addEventListener('click', function (e) {
+      var t = e.target.closest('.cp-tabs .ws-chip');
+      if (!t) return;
+      var host = t.closest('#cpBody');
+      if (!host) return;
+      var id = t.getAttribute('data-tab');
+      cpState.activeTab = id;
+      $$('.cp-tabs .ws-chip', host).forEach(function (b) { b.classList.toggle('is-active', b === t); });
+      $$('.cp-tabpanel', host).forEach(function (pnl) { pnl.classList.toggle('is-active', pnl.getAttribute('data-panel') === id); });
+    });
+  }
+  function tabSection(id, introHtml, bodyHtml) {
+    return '<div class="cp-tabintro">' + introHtml + '</div>' + bodyHtml;
+  }
+
   function selectColumn(idx) {
     ensureTooltip();
+    ensureTabs();
     cpState.current = idx;
     $$('.ws-navitem', $('#cpNav')).forEach(function (b, i) { b.classList.toggle('is-active', i === idx); });
     var p = cpState.report.allProfiles[idx];
     var model = cpState.model;
     var body = $('#cpBody');
+    var colName = esc(p.column);
 
     var kind = 'other';
     if (p.physical === 'integer' || p.physical === 'float') kind = 'numeric';
@@ -560,9 +600,10 @@
 
     var vals = colValues(model, p);
     var verdicts = [];
-    var cards = '';
     var insights = [];
     function insight(tone, html) { insights.push(insightRow(tone, html)); }
+
+    var statsHtml = '', shapeHtml = '', outliersHtml = '';
 
     if (kind === 'numeric') {
       var rowsAll = numericRows(model, p);
@@ -577,13 +618,7 @@
         verdicts.push(vtag(out.all.length + ' outlier' + (out.all.length === 1 ? '' : 's'), out.all.length ? 'rose' : 'green'));
         verdicts.push(vtag(pc(1 - p.nullRatio) + ' complete', p.nullRatio > 0.05 ? 'amber' : 'green'));
 
-        cards += '<div class="cp-split">' +
-          '<div class="sa-card"><div class="sa-card__h">Distribution <span class="sa-hint">' +
-          num(st.n) + (sampleR.sampled ? ' of ' + num(sampleR.total) + ' — sampled' : ' values') + '</span></div>' +
-          '<div class="ws-chartarea ws-chartarea--cp">' + histogramSvg(nums, bins, { sd: st.sd, iqr: st.iqr }) + '</div>' +
-          '<div class="ws-chartarea ws-chartarea--flat ws-chartarea--cp" style="margin-top:.8rem">' + boxPlotSvg(st, out.all.map(function (r) { return r.v; })) + '</div></div>' +
-
-          '<div class="sa-card"><div class="sa-card__h">Summary</div><dl class="sa-kv">' +
+        statsHtml = '<div class="sa-card"><div class="sa-card__h">Summary</div><dl class="sa-kv">' +
           [['Mean', round(st.mean)], ['Median', round(st.median)],
            ['Mode', st.modeMeaningful ? round(st.mode) + ' (×' + st.modeCount + ')' : '—'],
            ['Std dev', round(st.sd)], ['MAD', round(st.mad)], ['CV', round(st.cv, 3)],
@@ -591,19 +626,31 @@
            ['IQR', round(st.iqr)], ['P5 / P95', round(st.p5) + ' / ' + round(st.p95)],
            ['Skewness', round(st.skew, 3)], ['Kurtosis (excess)', round(st.kurtosis, 3)]]
           .map(function (kv) { return '<div><dt>' + kv[0] + '</dt><dd>' + kv[1] + '</dd></div>'; }).join('') + '</dl>' +
-          '<div class="sa-kv__tags">' + verdicts.join('') + '</div></div></div>';
+          '<div class="sa-kv__tags">' + verdicts.join('') + '</div></div>';
 
+        shapeHtml = '<div class="sa-card"><div class="sa-card__h">Distribution of ' + colName + ' <span class="sa-hint">' +
+          num(st.n) + (sampleR.sampled ? ' of ' + num(sampleR.total) + ' — sampled' : ' values') + ' · ' + shapeVerdict(st) + '</span></div>' +
+          '<div class="ws-chartarea ws-chartarea--cp">' + histogramSvg(nums, bins, { sd: st.sd, iqr: st.iqr }) + '</div>' +
+          '<p class="sa-note" style="margin-top:.6rem">Bars = how many values fall in each range. The cyan line traces the overall shape.</p>' +
+          '</div>' +
+          '<div class="sa-card"><div class="sa-card__h">Box plot <span class="sa-hint">the middle 50% of values, and what falls outside it</span></div>' +
+          '<div class="ws-chartarea ws-chartarea--flat ws-chartarea--cp">' + boxPlotSvg(st, out.all.map(function (r) { return r.v; })) + '</div></div>';
+
+        var outIntro = '<p class="sa-note">An outlier is a value that doesn’t fit the normal pattern for ' + colName +
+          ' — like one order being far larger than every other order. They aren’t automatically wrong, but they’re worth a second look. ' +
+          'We flag a value when it’s caught by any of three independent checks: it falls well outside the typical range (IQR), it’s far from the average (z-score), or it’s far from the middle value in a way outliers can’t hide from (modified z-score).</p>';
         if (out.all.length) {
-          cards += '<div class="sa-card"><div class="sa-card__h">Outliers <span class="sa-hint">' +
-            out.all.length + ' flagged by IQR (' + out.iqr.length + '), z-score (' + out.z.length +
-            '), or modified z-score/MAD (' + out.mad.length + ')</span></div><ul class="sa-list">' +
-            out.all.slice(0, 12).map(function (r) {
+          outliersHtml = outIntro + '<div class="sa-card"><div class="sa-card__h">' + num(out.all.length) + ' outlier' + (out.all.length === 1 ? '' : 's') + ' found' +
+            ' <span class="sa-hint">IQR: ' + out.iqr.length + ' · z-score: ' + out.z.length + ' · modified z-score: ' + out.mad.length + '</span></div>' +
+            '<div class="sa-tablewrap"><table class="sa-table"><thead><tr><th>Row</th><th>Value</th><th>Where it falls</th><th>Flagged by</th></tr></thead><tbody>' +
+            out.all.map(function (r) {
               var z = st.sd ? round((r.v - st.mean) / st.sd, 2) : 0;
-              return '<li><b>Row ' + (r.row + 2) + '</b><s>value ' + round(r.v) + ' — z = ' + z +
-                (r.v < out.lowFence ? ', below the low fence (' + round(out.lowFence) + ')' : ', above the high fence (' + round(out.highFence) + ')') +
-                ' — caught by ' + r.rules.join(' + ') + '</s></li>';
-            }).join('') + '</ul>' +
-            (out.all.length > 12 ? '<p class="sa-note">+ ' + (out.all.length - 12) + ' more.</p>' : '') + '</div>';
+              return '<tr><td><b>Row ' + (r.row + 2) + '</b></td><td>' + round(r.v) + '</td>' +
+                '<td>' + (r.v < out.lowFence ? 'below the normal range (z=' + z + ')' : 'above the normal range (z=' + z + ')') + '</td>' +
+                '<td>' + r.rules.join(', ') + '</td></tr>';
+            }).join('') + '</tbody></table></div></div>';
+        } else {
+          outliersHtml = outIntro + '<div class="sa-card"><p class="sa-empty">No outliers found — every value in ' + colName + ' sits within the normal range on all three checks.</p></div>';
         }
 
         /* insights — plain-language reading of the same numbers above */
@@ -635,7 +682,7 @@
         verdicts.push(vtag(pc(1 - p.nullRatio) + ' complete', p.nullRatio > 0.05 ? 'amber' : 'green'));
 
         var dowPairs = tst.dow.map(function (c, i) { return [DOW[i], c]; });
-        var summaryKv = '<div class="sa-card"><div class="sa-card__h">Summary</div><dl class="sa-kv">' +
+        statsHtml = '<div class="sa-card"><div class="sa-card__h">Summary</div><dl class="sa-kv">' +
           [['Earliest', tst.min.toLocaleDateString()], ['Latest', tst.max.toLocaleDateString()],
            ['Span', num(Math.round((tst.max - tst.min) / 86400000)) + ' days'],
            ['Order', tst.monotonic ? 'sorted ascending' : 'not sorted']]
@@ -643,12 +690,10 @@
           '<div class="sa-kv__tags">' + verdicts.join('') + '</div></div>';
 
         if (tst.monthly.length > 1) {
-          cards += '<div class="cp-split"><div class="sa-card"><div class="sa-card__h">Timeline <span class="sa-hint">by month</span></div>' +
-            '<div class="ws-chartarea ws-chartarea--cp">' + lineSvg(tst.monthly.slice(-24)) + '</div></div>' + summaryKv + '</div>';
-        } else {
-          cards += summaryKv;
+          shapeHtml += '<div class="sa-card"><div class="sa-card__h">' + colName + ' over time <span class="sa-hint">by month</span></div>' +
+            '<div class="ws-chartarea ws-chartarea--cp">' + lineSvg(tst.monthly.slice(-24)) + '</div></div>';
         }
-        cards += '<div class="sa-card"><div class="sa-card__h">Day-of-week distribution</div>' +
+        shapeHtml += '<div class="sa-card"><div class="sa-card__h">Which day of the week</div>' +
           '<div class="ws-chartarea ws-chartarea--cp">' + barChartSvg(dowPairs) + '</div></div>';
 
         insight('info', 'Spans ' + num(Math.round((tst.max - tst.min) / 86400000)) + ' days, from ' +
@@ -675,29 +720,29 @@
 
       if (useDonut) ensureDonutHover();
       var topFreqEarly = freq[0], topPctEarly = topFreqEarly ? topFreqEarly[1] / vals.length : 0;
-      cards += '<div class="cp-split">' +
-        '<div class="sa-card"><div class="sa-card__h">' + (kind === 'categorical' ? 'Value distribution' : 'Top values') +
-        ' <span class="sa-hint">' + (useDonut ? 'hover a slice for detail' : (kind === 'categorical' ? 'bars = count, line = cumulative %' : 'most frequent')) + '</span></div>' +
-        (useDonut
-          ? '<div class="cp-donutwrap" style="display:flex;align-items:center;justify-content:center;gap:1.8rem;flex-wrap:wrap;padding:.6rem 0">' +
-            '<div style="width:180px;flex:none">' + donutSvg(freq, vals.length) + '</div>' + donutLegend(freq, vals.length) + '</div>'
-          : '<div class="ws-chartarea ws-chartarea--cp">' + (kind === 'categorical' ? paretoSvg(freq.slice(0, 14), vals.length) : barChartSvg(freq.slice(0, 8))) + '</div>') +
-        '</div>' +
 
-        '<div class="sa-card"><div class="sa-card__h">Summary</div><dl class="sa-kv">' +
+      statsHtml = '<div class="sa-card"><div class="sa-card__h">Summary</div><dl class="sa-kv">' +
         [['Distinct', num(p.distinct)], ['Top value', topFreqEarly ? esc(String(topFreqEarly[0])) + ' (' + pc(topPctEarly) + ')' : '—'],
          ['Entropy', round(ent.bits, 2) + ' bits'], ['Normalized', round(ent.normalized, 2)]]
         .map(function (kv) { return '<div><dt>' + kv[0] + '</dt><dd>' + kv[1] + '</dd></div>'; }).join('') + '</dl>' +
-        '<div class="sa-kv__tags">' + verdicts.join('') + '</div></div></div>';
+        '<div class="sa-kv__tags">' + verdicts.join('') + '</div></div>';
 
       if (freq.length > 8) {
-        cards += '<div class="sa-card"><div class="sa-card__h">Full frequency table <span class="sa-hint">' + freq.length + ' distinct values</span></div>' +
+        statsHtml += '<div class="sa-card"><div class="sa-card__h">Full frequency table <span class="sa-hint">' + freq.length + ' distinct values</span></div>' +
           '<div class="sa-tablewrap"><table class="sa-table"><thead><tr><th>Value</th><th>Count</th><th>%</th></tr></thead><tbody>' +
           freq.slice(0, 100).map(function (f) {
             return '<tr><td><b>' + esc(f[0]) + '</b></td><td>' + num(f[1]) + '</td><td>' + pc(f[1] / vals.length) + '</td></tr>';
           }).join('') + '</tbody></table></div>' +
           (freq.length > 100 ? '<p class="sa-note">+ ' + num(freq.length - 100) + ' more distinct values.</p>' : '') + '</div>';
       }
+
+      shapeHtml = '<div class="sa-card"><div class="sa-card__h">' + (kind === 'categorical' ? 'How ' + colName + '’s values are split' : 'Most frequent values in ' + colName) +
+        ' <span class="sa-hint">' + (useDonut ? 'hover a slice for detail' : (kind === 'categorical' ? 'bars = count, line = cumulative %' : 'most frequent')) + '</span></div>' +
+        (useDonut
+          ? '<div class="cp-donutwrap" style="display:flex;align-items:center;justify-content:center;gap:1.8rem;flex-wrap:wrap;padding:.6rem 0">' +
+            '<div style="width:180px;flex:none">' + donutSvg(freq, vals.length) + '</div>' + donutLegend(freq, vals.length) + '</div>'
+          : '<div class="ws-chartarea ws-chartarea--cp">' + (kind === 'categorical' ? paretoSvg(freq.slice(0, 14), vals.length) : barChartSvg(freq.slice(0, 8))) + '</div>') +
+        '</div>';
 
       if (topPctEarly > 0.5) insight('warn', '"<b>' + esc(topFreqEarly[0]) + '</b>" alone accounts for ' + pc(topPctEarly) +
         ' of all rows — a dominant category that may carry little predictive signal as a feature.');
@@ -714,7 +759,7 @@
       var lst = stats(lens);
       var cst = textCharStats(vals);
       if (lst) {
-        cards += '<div class="sa-card"><div class="sa-card__h">Text profile' +
+        statsHtml += '<div class="sa-card"><div class="sa-card__h">Text profile' +
           (cst.sampled ? ' <span class="sa-hint">character stats sampled from ' + num(cst.sampleN) + ' of ' + num(cst.totalN) + '</span>' : '') +
           '</div><div class="sa-stats">' +
           [['Length min', lst.min], ['Length max', lst.max], ['Length mean', round(lst.mean, 1)], ['Length median', round(lst.median, 1)],
@@ -727,6 +772,7 @@
     }
 
     /* missingness structure — where the blanks fall, not just how many */
+    var missingHtml;
     if (p.nullCount > 0) {
       var runs = missingRuns(model, p);
       var sheet = model.sheets[p.sheetIndex];
@@ -737,8 +783,8 @@
       var dep = (p.nullRatio >= 0.05 && p.nullRatio <= 0.95)
         ? SchemaEngine.missingnessDependency(sheet, cpState.report.profiles[p.sheetIndex], p.index) : null;
 
-      cards += '<div class="sa-card"><div class="sa-card__h">Missingness <span class="sa-hint">' +
-        num(p.nullCount) + ' missing (' + pc(p.nullRatio) + ')</span></div>' +
+      missingHtml = '<div class="sa-card"><div class="sa-card__h">' + num(p.nullCount) + ' missing value' + (p.nullCount === 1 ? '' : 's') +
+        ' <span class="sa-hint">' + pc(p.nullRatio) + ' of all rows</span></div>' +
         (runs.length
           ? '<p class="sa-note">' + runs.length + ' block' + (runs.length === 1 ? '' : 's') + ' of 3+ consecutive missing rows — largest is rows ' +
             (runs[0][0] + 2) + '–' + (runs[0][1] + 2) + ' (' + num(runs[0][1] - runs[0][0] + 1) + ' rows). Reads like a broken export or an unfilled section, not random noise.</p>'
@@ -752,7 +798,34 @@
         (runs[0][0] + 2) + '–' + (runs[0][1] + 2) + ') — this pattern usually means a broken export or an unfilled section, not random gaps.');
       if (dep) insight('bad', 'Missing ' + pc(dep.rate) + ' of the time specifically when <b>' + esc(dep.column) + '</b> = "' + esc(dep.value) +
         '" — the gap correlates with another column, so it isn’t missing at random.');
+    } else {
+      missingHtml = '<div class="sa-card"><p class="sa-empty">Complete — ' + colName + ' has no missing values in any row.</p></div>';
     }
+
+    if (p.mismatch) insight('warn', 'Stored as ' + p.physical + ', but ' + pc(p.mismatch.ratio) + ' of values convert cleanly to ' + p.mismatch.detected + ' — likely the intended type.');
+    if (p.pii) insight('bad', 'Flagged as possible PII (' + p.pii + ') — mask or exclude before sharing or modelling.');
+
+    /* assemble tabs — only offer what this column kind actually has */
+    var tabs = [];
+    if (statsHtml) tabs.push({ id: 'stats', body: tabSection('stats',
+      '<p>The core numbers for <b>' + colName + '</b> — what you’d work out by hand, done for every value at once.</p>', statsHtml) });
+    if (shapeHtml) tabs.push({ id: 'shape', body: tabSection('shape',
+      '<p>' + (kind === 'numeric' ? 'How values in <b>' + colName + '</b> are spread out — where most values cluster, and where the unusual ones sit.'
+        : kind === 'temporal' ? 'How dates in <b>' + colName + '</b> are distributed.'
+        : 'How often each value appears in <b>' + colName + '</b>.') + '</p>', shapeHtml) });
+    tabs.push({ id: 'missing', body: tabSection('missing',
+      '<p>Missing values are rows where <b>' + colName + '</b> has no data at all. A few scattered blanks are usually harmless — a whole block of consecutive blanks often means something broke during export or entry.</p>', missingHtml) });
+    if (outliersHtml) tabs.push({ id: 'outliers', body: outliersHtml });
+
+    var activeTab = tabs.some(function (t) { return t.id === cpState.activeTab; }) ? cpState.activeTab : tabs[0].id;
+    cpState.activeTab = activeTab;
+
+    var tabBar = '<div class="ws-chips cp-tabs">' + tabs.map(function (t) {
+      return '<span class="ws-chip' + (t.id === activeTab ? ' is-active' : '') + '" data-tab="' + t.id + '">' + TAB_LABEL[t.id] + '</span>';
+    }).join('') + '</div>';
+    var tabPanels = tabs.map(function (t) {
+      return '<div class="cp-tabpanel' + (t.id === activeTab ? ' is-active' : '') + '" data-panel="' + t.id + '">' + t.body + '</div>';
+    }).join('');
 
     var mainHtml =
       '<div class="sa-section-head"><span class="sa-eyebrow">Column Profiler</span>' +
@@ -771,10 +844,7 @@
       '</div>' +
       (p.mismatch ? '<div class="sa-warn">Convertible to <b>' + p.mismatch.detected + '</b> (' + pc(p.mismatch.ratio) + ' of values).</div>' : '') +
       (p.pii ? '<div class="sa-warn sa-warn--red">Potential PII: ' + p.pii + '.</div>' : '') +
-      '</div>' + cards;
-
-    if (p.mismatch) insight('warn', 'Stored as ' + p.physical + ', but ' + pc(p.mismatch.ratio) + ' of values convert cleanly to ' + p.mismatch.detected + ' — likely the intended type.');
-    if (p.pii) insight('bad', 'Flagged as possible PII (' + p.pii + ') — mask or exclude before sharing or modelling.');
+      '</div>' + tabBar + tabPanels;
 
     body.innerHTML = '<div class="cp-layout"><div class="cp-main">' + mainHtml + '</div>' +
       '<aside class="cp-insights"><div class="cp-insights__h"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4z"/></svg>Insights</div>' +
@@ -1031,14 +1101,16 @@
     return s.outerHTML;
   }
   function lineSvg(pts) {
-    var W = 560, H = 300, pad = 30;
+    var W = 560, H = 220, padL = 44, padR = 14, top = 14, bottom = H - 26, plotH = bottom - top;
     var vals = pts.map(function (p) { return p[1]; });
     var minY = Math.min.apply(null, vals), maxY = Math.max.apply(null, vals);
-    if (minY === maxY) maxY++;
-    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + (H + 24), width: '100%' });
-    var step = pts.length > 1 ? (W - pad * 2) / (pts.length - 1) : 0;
+    if (minY > 0) minY = 0;
+    if (minY === maxY) maxY = minY + 1;
+    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, width: '100%' });
+    if (minY === 0) yAxis(s, padL, padR, top, bottom, maxY, W);
+    var step = pts.length > 1 ? (W - padL - padR) / (pts.length - 1) : 0;
     var coords = pts.map(function (p, i) {
-      return [pad + i * step, (H - 10) - ((p[1] - minY) / (maxY - minY)) * (H - 20)];
+      return [padL + i * step, bottom - ((p[1] - minY) / (maxY - minY)) * plotH];
     });
     var d = coords.map(function (c, i) { return (i === 0 ? 'M' : 'L') + c[0] + ' ' + c[1]; }).join(' ');
     s.appendChild(svg('path', { class: 'ws-line', d: d }));
@@ -1051,8 +1123,8 @@
       });
     }
     if (pts.length) {
-      var t0 = svg('text', { class: 'ws-axislabel', x: pad, y: H + 16 }); t0.textContent = String(pts[0][0]).slice(0, 12);
-      var t1 = svg('text', { class: 'ws-axislabel', x: W - pad, y: H + 16, 'text-anchor': 'end' }); t1.textContent = String(pts[pts.length - 1][0]).slice(0, 12);
+      var t0 = svg('text', { class: 'ws-axislabel', x: padL, y: bottom + 18 }); t0.textContent = String(pts[0][0]).slice(0, 12);
+      var t1 = svg('text', { class: 'ws-axislabel', x: W - padR, y: bottom + 18, 'text-anchor': 'end' }); t1.textContent = String(pts[pts.length - 1][0]).slice(0, 12);
       s.appendChild(t0); s.appendChild(t1);
     }
     return s.outerHTML;
