@@ -54,13 +54,12 @@ workspace below reads the SAME object rather than recomputing — this is
 literally Task 1/2's "one unified analytical engine, canonical dataset
 model" principle, honestly implemented client-side.
 
-- [x] Task 6-8 (partial), 72 — **Column Profiler**: two-pane layout (searchable
-      column list left, deep profile right). Real numeric stats computed
-      fresh from actual column values (mean/median/sd/CV/quartiles/P5/P95/
-      skewness), a real SVG histogram binned from real data, categorical
-      top-values bar chart, text length stats. Not yet built: KDE, box/violin
-      plots, per-column relationship/PII/rules sub-tabs (Task 72 lists ten;
-      four are live).
+- [x] Task 6-8, 9, 72 (partial) — **Column Profiler**: two-pane layout
+      (searchable column list left, deep profile right), now with per-kind
+      advanced profiling (numeric/categorical/text/temporal — see Session 12).
+      Not yet built: per-column relationship/PII/rules sub-tabs (Task 72
+      lists ten; four are live) and violin plots (skipped as redundant with
+      box plot + KDE, which are both built).
 - [x] Task 75 (honest scope) — **Relationship Mapper**: the existing node
       canvas already IS this — the nav item closes overlays, fits the view,
       and pulses the canvas rather than duplicating a second graph UI.
@@ -476,3 +475,115 @@ node surfaces or clustering: the search had no reason to know where a
 Regression: 0 console errors, 0 overflow, 0 node overlaps, 0 boundary
 violations across all 7 fixtures × 2 themes × 9 pages. Drag, bundle
 expand/collapse, edge-click panel, and SVG export all re-verified.
+
+## Session 12 — Column Profiler advanced profiling depth (Task 8/9)
+
+Closes most of Task 8 (8A–8G advanced profiling depth) and all of Task 9
+(outlier engine), both listed unchecked since Session 1. Everything stays
+in `assets/workspaces.js` (lazy, per-column compute, matching the existing
+architecture split — `schema-engine.js` stays untouched, since it runs on
+every column on every file load and needs to stay cheap).
+
+- [x] **Task 9 — Outlier engine, all three rules (IQR, z-score, modified
+      z-score/MAD)**. `findOutliers()` now flags each row by whichever
+      rule(s) actually caught it, shown in the Outliers card ("caught by
+      IQR + MAD", etc.) instead of a single undifferentiated list.
+      Verified the third rule adds real, non-redundant coverage rather
+      than just checkbox completeness: built a synthetic masking case (40
+      values tightly clustered ~100, 5 extreme values ~500) where the
+      extreme values inflate mean/sd enough that plain z-score misses
+      them entirely (z≈2.8, under the |z|>3 threshold — 0 of 5 caught),
+      while IQR and modified z-score both correctly flag them. Confirmed
+      in the live UI, not just computed offline.
+- [x] **Task 8 (partial) — numeric**: mode, MAD, excess kurtosis added to
+      the existing mean/median/sd/CV/quartiles/P5/P95/skewness; Freedman–
+      Diaconis histogram bins (was a fixed 14); a real box-and-whisker
+      plot; a Gaussian KDE density curve overlaid on the histogram
+      (Silverman's-rule bandwidth) — closes the "Not yet built: KDE" note.
+      Violin plot intentionally skipped — redundant with box + KDE
+      together, which already show quartiles and shape.
+- [x] **Task 8 (partial) — categorical/text**: full frequency distribution
+      with cumulative-% Pareto chart (previously top-5 only), Shannon
+      entropy/diversity score, word-count and character-class (alpha/
+      digit/space/special) stats, leading/trailing-whitespace flag.
+- [x] **Task 8 (partial) — date/temporal**: previously fell into the
+      generic "top values" bucket like any other string column. Now: date
+      range, a monthly timeline histogram, day-of-week distribution, and a
+      sorted/not-sorted check (a strong tell for a log or time index).
+- [x] **Missingness structure**: detects runs of 3+ consecutive missing
+      rows (a broken export reads very differently from scattered noise)
+      and wires the existing `SchemaEngine.missingnessDependency` — real,
+      previously computed only at the aggregate report level — into the
+      per-column view ("missing 65% of the time when status = X").
+- [x] **Distribution shape verdict + summary tags**: skew/kurtosis-based
+      shape label ("right-skewed, heavy-tailed", etc.) and a row of at-a-
+      glance badges (shape/outlier-count/diversity/completeness) at the
+      top of every profile.
+- [ ] Not built this session: Task 8's boolean-specific profile (booleans
+      currently render via the categorical/binary path, which is adequate
+      but not dedicated); Task 72's per-column relationship/PII/rules
+      sub-tabs (out of scope by design — TASKS.md itself doesn't enumerate
+      what the ten sub-tabs are, and it's a different kind of work, tabbed
+      sub-navigation rather than deeper stats).
+
+Regression: scripted sweep opened every column of all 14 files in
+`samples/` (up to 79 columns each, including the two railML stress
+fixtures) via headless Chromium — 0 console/page errors. Numeric, box
+plot, KDE, categorical Pareto, temporal timeline, and missingness-block
+paths each individually verified against real data (`bank_wide.xlsx`'s
+`pdays` — a real dataset with a 999 sentinel value, correctly surfaced as
+225 outliers and the column's mode) and a purpose-built synthetic fixture
+for the missingness/temporal/masking-effect cases.
+
+## Session 13 — Column Profiler UI pass: real chart variety, interactivity, insights rail
+
+User feedback: every column rendered as a bar chart, charts were too
+large, and nothing was interactive. Also pointed at the marketing page's
+static demo (`column-profiler.html`) — chart card beside a row-per-stat
+summary card — as the layout to actually build. All changes stay in
+`assets/workspaces.js` + `assets/schema.css`, same lazy per-column
+architecture as Session 12.
+
+- [x] **Real chart-type variety**: donut chart for low-cardinality
+      categorical/binary columns (≤6 distinct) instead of a bar — reads
+      far better as proportions. Higher-cardinality categorical/text stays
+      Pareto bar+cumulative-line. Temporal timeline switched from bars to
+      a line chart (reused `lineSvg` from Chart Studio rather than writing
+      a new one) — the correct convention for a time series and visibly
+      distinct from the histogram/Pareto bars elsewhere on the same page.
+- [x] **Real interactivity**: replaced the native, unstyleable `<title>`
+      tooltip with one shared floating tooltip, delegated on `document` so
+      it survives every column re-render — every chart element (histogram
+      bins, box/whisker/outliers, Pareto bars + cumulative dots, donut
+      slices, timeline points) now shows exact figures on hover, styled to
+      match the rest of the app. Added linked hover between a donut's
+      slices and its legend rows (hover either, the matching pair
+      highlights and the rest dim) and a subtle fade-in on cards/insights
+      when switching columns.
+- [x] **Sizing fix**: charts were stretching to the full panel width in a
+      wide overlay, just getting taller for no informational gain. Capped
+      at 480px/200px via a new `.ws-chartarea--cp` class.
+- [x] **Layout**: adopted the marketing page's own `.prof` pattern (chart
+      card beside a compact summary card) — a new `.cp-split` grid pairs
+      Distribution/Value-distribution/Timeline with a `.sa-kv` row-per-stat
+      Summary card carrying the same verdict-tag pills at its bottom,
+      replacing the previous full-width-stacked-cards layout.
+- [x] **Insights side panel** (`.cp-insights`, sticky right rail): explains
+      the selected column in plain language, grounded in the exact numbers
+      already on screen — skew direction and what it implies for mean vs.
+      median, the single worst outlier's row/value, CV-based variability
+      reads, dominant-category/near-unique flags, missingness-block and
+      missingness-dependency callouts, day-of-week concentration for dates.
+      Never a separate fabricated commentary layer — every sentence cites
+      a value the cards above it already computed.
+- [x] **Bug fix, found in passing**: `SchemaEngine.describe()` had no
+      branch for `statistical === 'binary'`, so boolean columns described
+      themselves as "Free text field." — jarringly wrong right above a
+      correctly-rendered true/false donut. Added the missing branch.
+
+Regression: full sweep re-run after every change (all 14 sample files,
+every column, headless Chromium) — 0 console/page errors throughout.
+Visually verified: linked donut hover (slice + legend highlight together,
+rest dim), tooltip content and hover-brighten state, chart-beside-summary
+layout on numeric/categorical/temporal, and the Pareto path still renders
+correctly for a constructed 10-category fixture (donut is capped at 6).
